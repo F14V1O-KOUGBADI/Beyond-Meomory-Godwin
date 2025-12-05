@@ -129,16 +129,16 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, onRoomChange }) => {
         return {
           bg: '#000806', // Almost Black Green
           fog: '#000806',
-          floor: '#1B5E20', // Deep Jade
-          floorAlt: '#004D40', // Dark Teal
-          wall: '#1A1A1A', // Charcoal Black
-          columnMain: '#880E4F', // Deep Lacquer Red
-          columnDetail: '#FDD835', // Gold
-          lightColor: '#C8E6C9', // Pale Jade Moonlight
-          lightIntensity: 0.6,
-          sunColor: '#E0F7FA', // Cold White Sun
-          sunIntensity: 1.0,
-          skylight: '#A5D6A7'
+          floor: '#2e7d32', // Deep Jade Green (Grass/Moss)
+          floorAlt: '#1b5e20', // Darker Green
+          wall: '#212121', // Dark Stone
+          columnMain: '#B71C1C', // Red Lacquer
+          columnDetail: '#FFD700', // Gold
+          lightColor: '#FFCDD2', // Soft Red Glow
+          lightIntensity: 0.7,
+          sunColor: '#FFEB3B', // Warm Sun
+          sunIntensity: 1.1,
+          skylight: '#81C784'
         };
       case 'European':
       default:
@@ -285,23 +285,46 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, onRoomChange }) => {
     const neonMat = new THREE.MeshBasicMaterial({ color: '#00E5FF' });
     const goldMat = new THREE.MeshStandardMaterial({ color: '#FFD700', metalness: 0.9, roughness: 0.2, emissive: '#FFAB00', emissiveIntensity: 0.2 });
 
+    // European specific materials
+    const grassMat = new THREE.MeshStandardMaterial({ color: '#4CAF50', roughness: 1 });
+    const flowerMat = new THREE.MeshStandardMaterial({ color: '#E91E63', roughness: 0.5 });
+    const autumnLeafMat = new THREE.MeshStandardMaterial({ color: '#FF6F00', roughness: 0.8 });
+    const brickMat = new THREE.MeshStandardMaterial({ color: '#8D6E63', roughness: 0.9 });
+    const cityGlassMat = new THREE.MeshStandardMaterial({ color: '#90CAF9', metalness: 0.9, roughness: 0.1 });
+    const starMat = new THREE.MeshBasicMaterial({ color: '#FFFFFF' });
+
+    // Asian specific materials
+    const bambooMat = new THREE.MeshStandardMaterial({ color: '#689F38', roughness: 0.6 });
+    const lacquerMat = new THREE.MeshStandardMaterial({ color: '#B71C1C', roughness: 0.2, metalness: 0.3 }); // Red lacquer
+    const paperMat = new THREE.MeshStandardMaterial({ color: '#FFEBEE', roughness: 1, emissive: '#FFCDD2', emissiveIntensity: 0.3 }); // Lantern paper
+    const jadeMat = new THREE.MeshPhysicalMaterial({ color: '#43A047', transmission: 0.4, opacity: 0.9, roughness: 0.1, metalness: 0 });
+    const waterMat = new THREE.MeshStandardMaterial({ color: '#0277BD', roughness: 0.1, metalness: 0.8, transparent: true, opacity: 0.8 });
+    const inkMat = new THREE.MeshBasicMaterial({ color: '#000000' });
+
+
     // Helper to create tree of life at different stages
-    const createStylizedTree = (scale: number, hasLeaves: boolean, type: 'sapling'|'bush'|'tree'|'ancient') => {
+    const createStylizedTree = (scale: number, hasLeaves: boolean, type: 'sapling'|'bush'|'tree'|'ancient'|'autumn'|'cherry') => {
         const grp = new THREE.Group();
         
         // Trunk
         const trunkH = scale * 10;
         const trunkR = scale;
-        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(trunkR * 0.7, trunkR, trunkH, 8), woodMat);
+        const trunkColor = type === 'cherry' ? '#5D4037' : '#3E2723';
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(trunkR * 0.7, trunkR, trunkH, 8), new THREE.MeshStandardMaterial({color: trunkColor}));
         trunk.position.y = trunkH / 2;
         grp.add(trunk);
 
         // Leaves
         if (hasLeaves) {
-            const foliageCount = type === 'sapling' ? 1 : type === 'bush' ? 5 : type === 'tree' ? 12 : 30;
+            const foliageCount = type === 'sapling' ? 1 : type === 'bush' ? 5 : type === 'tree' ? 12 : type === 'autumn' ? 20 : 30;
             const size = scale * 4;
+            let mat = leafMat;
+            if (type === 'autumn') mat = autumnLeafMat;
+            if (type === 'ancient') mat = goldMat;
+            if (type === 'cherry') mat = new THREE.MeshStandardMaterial({color: '#F48FB1'}); // Pink
+
             for(let i=0; i<foliageCount; i++) {
-                const foliage = new THREE.Mesh(new THREE.IcosahedronGeometry(size, 0), leafMat);
+                const foliage = new THREE.Mesh(new THREE.IcosahedronGeometry(size, 0), mat);
                 foliage.position.y = trunkH + (Math.random() * size);
                 foliage.position.x = (Math.random() - 0.5) * size * 2;
                 foliage.position.z = (Math.random() - 0.5) * size * 2;
@@ -455,55 +478,371 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, onRoomChange }) => {
                       particles.add(dot);
                   }
                   stageGroup.add(particles);
-                  // Animation for particles is simulated by static placement here for simplicity, 
-                  // or could be added to loop if referenced.
               }
 
               group.add(stageGroup);
           });
+      
+      // --- EUROPEAN THEME: PATH OF SEASONS ---
+      } else if (theme === 'European') {
+          const stages = [
+             { name: 'Birth', type: 'winter' },
+             { name: 'Early Childhood', type: 'spring' },
+             { name: 'Childhood', type: 'discovery' },
+             { name: 'Adolescence', type: 'questions' },
+             { name: 'Young Adult', type: 'construction' },
+             { name: 'Mature', type: 'balance' },
+             { name: 'Late Years', type: 'autumn' },
+             { name: 'Memory', type: 'constellation' },
+          ];
+
+          stages.forEach((stage, i) => {
+              const angle = (i / 8) * Math.PI * 2;
+              const r = 85;
+              const x = Math.cos(angle) * r;
+              const z = Math.sin(angle) * r;
+              
+              const stageGroup = new THREE.Group();
+              stageGroup.position.set(x, -10, z);
+              stageGroup.rotation.y = -angle; 
+
+              // 1. WINTER: Luminous Birth
+              if (stage.type === 'winter') {
+                  const platform = new THREE.Mesh(new THREE.CylinderGeometry(15, 18, 2, 32), rotundaFloorMat); // Snow texture
+                  platform.position.y = 1;
+                  stageGroup.add(platform);
+                  
+                  // Mobile
+                  for(let j=0; j<4; j++) {
+                     const star = new THREE.Mesh(new THREE.OctahedronGeometry(1), starMat);
+                     star.position.set((Math.random()-0.5)*8, 12 + Math.random()*5, (Math.random()-0.5)*8);
+                     stageGroup.add(star);
+                  }
+                  const light = new THREE.PointLight('#E1F5FE', 2, 20);
+                  light.position.y = 8;
+                  stageGroup.add(light);
+              }
+
+              // 2. SPRING: Early Childhood
+              if (stage.type === 'spring') {
+                  const platform = new THREE.Mesh(new THREE.CylinderGeometry(15, 18, 2, 32), grassMat);
+                  platform.position.y = 1;
+                  stageGroup.add(platform);
+                  
+                  // Flowers
+                  for(let j=0; j<8; j++) {
+                      const flowerGrp = new THREE.Group();
+                      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 3), new THREE.MeshStandardMaterial({color:'green'}));
+                      stem.position.y = 1.5;
+                      const petal = new THREE.Mesh(new THREE.ConeGeometry(0.8, 1, 5), flowerMat);
+                      petal.position.y = 3;
+                      petal.rotation.x = Math.PI;
+                      flowerGrp.add(stem);
+                      flowerGrp.add(petal);
+                      flowerGrp.position.set((Math.random()-0.5)*12, 2, (Math.random()-0.5)*12);
+                      stageGroup.add(flowerGrp);
+                  }
+                  const light = new THREE.PointLight('#F8BBD0', 1.5, 20);
+                  light.position.y = 8;
+                  stageGroup.add(light);
+              }
+
+              // 3. DISCOVERY: Childhood (School/Books)
+              if (stage.type === 'discovery') {
+                  const platform = new THREE.Mesh(new THREE.CylinderGeometry(15, 18, 2, 32), floorMat);
+                  platform.position.y = 1;
+                  stageGroup.add(platform);
+
+                  // Books stack
+                  for(let b=0; b<5; b++) {
+                      const book = new THREE.Mesh(new THREE.BoxGeometry(4, 1, 5), new THREE.MeshStandardMaterial({color: new THREE.Color().setHSL(b*0.1, 0.8, 0.5)}));
+                      book.position.set(0, 2.5 + b, 0);
+                      book.rotation.y = Math.random();
+                      stageGroup.add(book);
+                  }
+                  // Globe
+                  const globe = new THREE.Mesh(new THREE.SphereGeometry(2), new THREE.MeshStandardMaterial({color: '#2196F3', metalness: 0.2}));
+                  globe.position.set(5, 4, 2);
+                  stageGroup.add(globe);
+              }
+
+              // 4. QUESTIONS: Adolescence (Neon)
+              if (stage.type === 'questions') {
+                  const platform = new THREE.Mesh(new THREE.CylinderGeometry(15, 18, 2, 32), new THREE.MeshStandardMaterial({color:'#212121'}));
+                  platform.position.y = 1;
+                  stageGroup.add(platform);
+
+                  const torus = new THREE.Mesh(new THREE.TorusGeometry(6, 0.5, 16, 100), neonMat);
+                  torus.position.y = 10;
+                  torus.rotation.y = Math.PI/4;
+                  stageGroup.add(torus);
+                  
+                  const iso = new THREE.Mesh(new THREE.IcosahedronGeometry(2), new THREE.MeshBasicMaterial({color: '#FF4081', wireframe:true}));
+                  iso.position.set(-4, 6, 0);
+                  stageGroup.add(iso);
+              }
+
+              // 5. CONSTRUCTION: Young Adult (City)
+              if (stage.type === 'construction') {
+                  const platform = new THREE.Mesh(new THREE.CylinderGeometry(15, 18, 2, 32), floorMat);
+                  platform.position.y = 1;
+                  stageGroup.add(platform);
+
+                  // Skyscrapers
+                  const buildings = [
+                      {h: 12, x: -3, z: -3}, {h: 8, x: 4, z: -2}, {h: 15, x: 0, z: 4}
+                  ];
+                  buildings.forEach(b => {
+                      const build = new THREE.Mesh(new THREE.BoxGeometry(3, b.h, 3), cityGlassMat);
+                      build.position.set(b.x, 2 + b.h/2, b.z);
+                      stageGroup.add(build);
+                  });
+              }
+
+              // 6. BALANCE: Mature (Home)
+              if (stage.type === 'balance') {
+                  const platform = new THREE.Mesh(new THREE.CylinderGeometry(15, 18, 2, 32), floorMat);
+                  platform.position.y = 1;
+                  stageGroup.add(platform);
+
+                  // House shape
+                  const houseGrp = new THREE.Group();
+                  const body = new THREE.Mesh(new THREE.BoxGeometry(8, 8, 8), brickMat);
+                  body.position.y = 4;
+                  houseGrp.add(body);
+                  const roof = new THREE.Mesh(new THREE.ConeGeometry(7, 4, 4), new THREE.MeshStandardMaterial({color:'#3E2723'}));
+                  roof.position.y = 10;
+                  roof.rotation.y = Math.PI/4;
+                  houseGrp.add(roof);
+                  houseGrp.position.y = 2;
+                  stageGroup.add(houseGrp);
+              }
+
+              // 7. AUTUMN: Late Years
+              if (stage.type === 'autumn') {
+                  const platform = new THREE.Mesh(new THREE.CylinderGeometry(15, 18, 2, 32), new THREE.MeshStandardMaterial({color:'#5D4037'}));
+                  platform.position.y = 1;
+                  stageGroup.add(platform);
+
+                  const tree = createStylizedTree(1.2, true, 'autumn');
+                  tree.position.z = -5;
+                  stageGroup.add(tree);
+                  
+                  // Fallen leaves
+                  for(let l=0; l<10; l++) {
+                      const leaf = new THREE.Mesh(new THREE.CircleGeometry(0.5), autumnLeafMat);
+                      leaf.rotation.x = -Math.PI/2;
+                      leaf.position.set((Math.random()-0.5)*10, 2.1, (Math.random()-0.5)*10);
+                      stageGroup.add(leaf);
+                  }
+                  
+                  const light = new THREE.PointLight('#FF6F00', 2, 25);
+                  light.position.y = 10;
+                  stageGroup.add(light);
+              }
+
+              // 8. CONSTELLATION: Memory
+              if (stage.type === 'constellation') {
+                   const platform = new THREE.Mesh(new THREE.CylinderGeometry(15, 18, 2, 32), rotundaFloorMat);
+                   platform.position.y = 1;
+                   stageGroup.add(platform);
+                   
+                   const particles = new THREE.Group();
+                   for(let p=0; p<25; p++) {
+                       const star = new THREE.Mesh(new THREE.SphereGeometry(0.2), starMat);
+                       star.position.set((Math.random()-0.5)*12, Math.random()*25, (Math.random()-0.5)*12);
+                       particles.add(star);
+                   }
+                   stageGroup.add(particles);
+              }
+
+              group.add(stageGroup);
+          });
+
+      // --- ASIAN THEME: GARDEN OF AGES ---
+      } else if (theme === 'Asian') {
+          const stages = [
+             { name: 'Birth', type: 'source' },
+             { name: 'Early Childhood', type: 'garden' },
+             { name: 'Learning', type: 'pagoda' },
+             { name: 'Paths', type: 'bridge' },
+             { name: 'Self', type: 'fusion' },
+             { name: 'Harmony', type: 'bonsai' },
+             { name: 'Serene Autumn', type: 'zen' },
+             { name: 'Memory', type: 'lantern' },
+          ];
+
+          stages.forEach((stage, i) => {
+              const angle = (i / 8) * Math.PI * 2;
+              const r = 85;
+              const x = Math.cos(angle) * r;
+              const z = Math.sin(angle) * r;
+              
+              const stageGroup = new THREE.Group();
+              stageGroup.position.set(x, -10, z);
+              stageGroup.rotation.y = -angle;
+
+              // Base (varies per stage)
+              const platformMat = ['source', 'zen'].includes(stage.type) ? new THREE.MeshStandardMaterial({color:'#4E342E'}) : floorMat;
+              const platform = new THREE.Mesh(new THREE.CylinderGeometry(15, 18, 2, 32), platformMat);
+              platform.position.y = 1;
+              stageGroup.add(platform);
+
+              // 1. SOURCE: Pond & Lotus
+              if (stage.type === 'source') {
+                  const pond = new THREE.Mesh(new THREE.CylinderGeometry(12, 12, 1, 32), waterMat);
+                  pond.position.y = 2.1;
+                  stageGroup.add(pond);
+                  
+                  // Lotus
+                  const lotusGrp = new THREE.Group();
+                  for(let p=0; p<8; p++) {
+                      const petal = new THREE.Mesh(new THREE.ConeGeometry(1, 4, 3), new THREE.MeshStandardMaterial({color:'#F48FB1'}));
+                      petal.rotation.x = Math.PI/4;
+                      petal.rotation.y = (p/8)*Math.PI*2;
+                      petal.position.set(Math.cos(p/8*Math.PI*2)*1.5, 1, Math.sin(p/8*Math.PI*2)*1.5);
+                      lotusGrp.add(petal);
+                  }
+                  lotusGrp.position.y = 2.5;
+                  stageGroup.add(lotusGrp);
+              }
+
+              // 2. GARDEN: Bamboo Forest & Kites
+              if (stage.type === 'garden') {
+                  for(let b=0; b<8; b++) {
+                      const h = 10 + Math.random()*10;
+                      const bamboo = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.6, h, 8), bambooMat);
+                      bamboo.position.set((Math.random()-0.5)*14, h/2+2, (Math.random()-0.5)*14);
+                      stageGroup.add(bamboo);
+                  }
+                  // Kite
+                  const kite = new THREE.Mesh(new THREE.OctahedronGeometry(1.5, 0), new THREE.MeshStandardMaterial({color:'#E91E63'}));
+                  kite.scale.set(1, 1.5, 0.2);
+                  kite.position.set(0, 15, 0);
+                  kite.rotation.z = 0.5;
+                  stageGroup.add(kite);
+              }
+
+              // 3. LEARNING: Pagoda pillars & Calligraphy
+              if (stage.type === 'pagoda') {
+                  const pillar = new THREE.Mesh(new THREE.BoxGeometry(4, 15, 4), lacquerMat);
+                  pillar.position.y = 8;
+                  stageGroup.add(pillar);
+                  
+                  // Floating "Characters" (Abstract black strokes)
+                  for(let c=0; c<5; c++) {
+                      const stroke = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 0.1), inkMat);
+                      stroke.position.set((Math.random()-0.5)*10, 5 + c*3, 6);
+                      stroke.rotation.z = Math.random()*Math.PI;
+                      stageGroup.add(stroke);
+                  }
+              }
+
+              // 4. PATHS: Bridge & Neon
+              if (stage.type === 'bridge') {
+                   // Arched bridge shape
+                   const bridge = new THREE.Mesh(new THREE.TorusGeometry(10, 2, 16, 20, Math.PI), lacquerMat);
+                   bridge.rotation.x = Math.PI/2;
+                   bridge.scale.set(1, 0.5, 1);
+                   bridge.position.y = 2;
+                   stageGroup.add(bridge);
+                   
+                   const neon = new THREE.Mesh(new THREE.BoxGeometry(0.5, 12, 0.5), neonMat);
+                   neon.position.set(6, 6, 0);
+                   stageGroup.add(neon);
+              }
+
+              // 5. SELF: Fusion (Torii + Skyscraper)
+              if (stage.type === 'fusion') {
+                  // Torii Gate base
+                  const postGeo = new THREE.CylinderGeometry(0.8, 0.8, 12);
+                  const p1 = new THREE.Mesh(postGeo, lacquerMat); p1.position.set(-5, 6, 0);
+                  const p2 = new THREE.Mesh(postGeo, lacquerMat); p2.position.set(5, 6, 0);
+                  const top = new THREE.Mesh(new THREE.BoxGeometry(14, 1, 1), lacquerMat); top.position.y = 11;
+                  stageGroup.add(p1); stageGroup.add(p2); stageGroup.add(top);
+
+                  // Glass shard emerging
+                  const shard = new THREE.Mesh(new THREE.ConeGeometry(3, 20, 4), cityGlassMat);
+                  shard.rotation.y = Math.PI/4;
+                  shard.position.y = 10;
+                  shard.position.z = -2;
+                  stageGroup.add(shard);
+              }
+
+              // 6. HARMONY: Bonsai
+              if (stage.type === 'bonsai') {
+                  const table = new THREE.Mesh(new THREE.BoxGeometry(10, 2, 6), new THREE.MeshStandardMaterial({color:'#5D4037'}));
+                  table.position.y = 3;
+                  stageGroup.add(table);
+                  
+                  const bonsai = createStylizedTree(0.3, true, 'tree');
+                  bonsai.position.y = 4;
+                  stageGroup.add(bonsai);
+              }
+
+              // 7. ZEN: Autumn Garden
+              if (stage.type === 'zen') {
+                  const sand = new THREE.Mesh(new THREE.CylinderGeometry(14, 14, 1, 32), new THREE.MeshStandardMaterial({color:'#E0E0E0'})); // White sand
+                  sand.position.y = 2;
+                  stageGroup.add(sand);
+                  
+                  // Rock
+                  const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(1.5), new THREE.MeshStandardMaterial({color:'#757575'}));
+                  rock.position.set(3, 3, 2);
+                  stageGroup.add(rock);
+                  
+                  const maple = createStylizedTree(0.8, true, 'autumn');
+                  maple.position.set(-4, 2, -2);
+                  stageGroup.add(maple);
+              }
+
+              // 8. ETERNAL LANTERN
+              if (stage.type === 'lantern') {
+                  const lantern = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 8, 8), paperMat);
+                  lantern.position.y = 8;
+                  stageGroup.add(lantern);
+                  
+                  const cap = new THREE.Mesh(new THREE.ConeGeometry(4, 2, 8), lacquerMat);
+                  cap.position.y = 13;
+                  stageGroup.add(cap);
+
+                  const light = new THREE.PointLight('#FFCDD2', 3, 30);
+                  light.position.y = 8;
+                  stageGroup.add(light);
+                  
+                  // Rising particles
+                  const parts = new THREE.Group();
+                  for(let p=0; p<15; p++) {
+                      const sp = new THREE.Mesh(new THREE.SphereGeometry(0.2), new THREE.MeshBasicMaterial({color:'#FFD700'}));
+                      sp.position.set((Math.random()-0.5)*6, Math.random()*20, (Math.random()-0.5)*6);
+                      parts.add(sp);
+                  }
+                  stageGroup.add(parts);
+              }
+
+              group.add(stageGroup);
+          });
+
       } else {
-          // --- STANDARD COLUMNS (European / Asian) ---
+          // --- FALLBACK (Should not happen with current logic but kept for safety) ---
           for (let i = 0; i < 12; i++) {
               const angle = (i / 12) * Math.PI * 2;
               const r = 80;
               const colGroup = new THREE.Group();
               colGroup.position.set(Math.cos(angle) * r, -10, Math.sin(angle) * r);
-              colGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(4, 5, 2, 32), columnDetailMat).translateY(1));
               colGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 60, 32), columnMainMat).translateY(32));
-              colGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.2, 10, 32), columnDetailMat).translateY(15));
-              colGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(5, 3.5, 3, 32), columnDetailMat).translateY(62));
               group.add(colGroup);
           }
       }
       
-      // Standard Display Cases (Only if NOT African, or reduced for African)
-      if (theme !== 'African') {
+      // Standard Display Cases (Only if NOT African/European/Asian) -> Effectively removed as all 3 themes cover cases, but logic remains for "Other"
+      if (!['African', 'European', 'Asian'].includes(theme)) {
         [0, Math.PI/2, Math.PI, Math.PI*1.5].forEach((angle, i) => {
            const r = 35;
            const cGroup = new THREE.Group();
            cGroup.position.set(Math.cos(angle)*r, -10, Math.sin(angle)*r);
            cGroup.rotation.y = -angle + Math.PI/2;
-           
-           const baseColor = theme === 'Asian' ? '#1A1A1A' : '#ECEFF1';
-           cGroup.add(new THREE.Mesh(new THREE.BoxGeometry(10, 4, 10), new THREE.MeshStandardMaterial({color: baseColor})).translateY(2));
-           
-           if (theme === 'Asian') {
-               cGroup.add(new THREE.Mesh(new THREE.BoxGeometry(10, 15, 0.5), new THREE.MeshStandardMaterial({color:'#d7ccc8', transparent:true, opacity:0.8})).translateY(11.5)); 
-               const frame = new THREE.Mesh(new THREE.BoxGeometry(10.5, 15.5, 1), new THREE.MeshStandardMaterial({color:'#3e2723'})).translateY(11.5);
-               cGroup.add(frame);
-           } else {
-               cGroup.add(new THREE.Mesh(new THREE.BoxGeometry(10, 15, 10), glassMat).translateY(11.5));
-           }
-
-           cGroup.add(new THREE.Mesh(new THREE.BoxGeometry(10.2, 0.5, 10.2), new THREE.MeshStandardMaterial({color: themeConfig.columnDetail})).translateY(19));
-           
-           const art = new THREE.Mesh(new THREE.SphereGeometry(2), new THREE.MeshStandardMaterial({ color: '#ECEFF1', metalness: 0.8, roughness: 0.2 })); 
-           art.position.y = 7;
-           cGroup.add(art);
-           
-           const light = new THREE.PointLight(themeConfig.columnDetail, 1.5, 15); 
-           light.position.y = 10;
-           cGroup.add(light);
+           cGroup.add(new THREE.Mesh(new THREE.BoxGeometry(10, 15, 10), glassMat).translateY(11.5));
            group.add(cGroup);
         });
       }
