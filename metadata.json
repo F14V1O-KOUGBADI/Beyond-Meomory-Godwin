@@ -1,0 +1,5 @@
+{
+  "name": "Copy of MemeGen AI",
+  "description": "An intelligent meme generator powered by Gemini. Upload photos and magically edit images using text prompts (Gemini 2.5 Flash Image).",
+  "requestFramePermissions": []
+}
