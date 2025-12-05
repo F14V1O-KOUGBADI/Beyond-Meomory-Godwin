@@ -429,28 +429,38 @@ const Scene3D: React.FC<Scene3DProps> = ({ images, onRoomChange }) => {
       }
       snowMesh.instanceMatrix.needsUpdate = true;
 
-      // MOVEMENT LOGIC
+      // CAMERA CONTROLS (ZQSD / WASD physical)
+      // KeyW = Physical Up (Z azerty / W qwerty)
+      // KeyS = Physical Down (S)
+      // KeyA = Physical Left (Q azerty / A qwerty)
+      // KeyD = Physical Right (D)
+      if (keysPressed.current['KeyA']) {
+        cameraAngle.current.theta += 0.03;
+      }
+      if (keysPressed.current['KeyD']) {
+        cameraAngle.current.theta -= 0.03;
+      }
+      if (keysPressed.current['KeyW']) {
+        cameraAngle.current.phi = Math.max(0.1, cameraAngle.current.phi - 0.03);
+      }
+      if (keysPressed.current['KeyS']) {
+        cameraAngle.current.phi = Math.min(Math.PI / 1.5, cameraAngle.current.phi + 0.03);
+      }
+
+      // CHARACTER MOVEMENT (ARROWS ONLY)
       if (characterRef.current && cameraRef.current) {
           const char = characterRef.current;
-          let isMoving = false;
           const speed = characterSpeed;
 
-          // Note: using e.code handles physical key positions regardless of layout
-          // KeyW = Top Left (QWERTY W / AZERTY Z)
-          // KeyS = Middle Left (S)
-          // KeyA = Left (QWERTY A / AZERTY Q)
-          // KeyD = Right (D)
-          
           let inputFwd = 0;
           let inputRight = 0;
 
-          if (keysPressed.current['ArrowUp'] || keysPressed.current['KeyW']) inputFwd = 1;
-          if (keysPressed.current['ArrowDown'] || keysPressed.current['KeyS']) inputFwd = -1;
-          if (keysPressed.current['ArrowLeft'] || keysPressed.current['KeyA']) inputRight = -1;
-          if (keysPressed.current['ArrowRight'] || keysPressed.current['KeyD']) inputRight = 1;
+          if (keysPressed.current['ArrowUp']) inputFwd = 1;
+          if (keysPressed.current['ArrowDown']) inputFwd = -1;
+          if (keysPressed.current['ArrowLeft']) inputRight = -1;
+          if (keysPressed.current['ArrowRight']) inputRight = 1;
 
           if (inputFwd !== 0 || inputRight !== 0) {
-              isMoving = true;
               
               // Get camera direction (ignore Y for movement plane)
               const camDir = new THREE.Vector3();
@@ -719,7 +729,9 @@ const Scene3D: React.FC<Scene3DProps> = ({ images, onRoomChange }) => {
                 <svg className="w-6 h-6 transform rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
               </button>
             </div>
-            <div className="text-[10px] text-white/50 font-bold mt-2">ZQSD / WASD</div>
+            <div className="text-[10px] text-white/50 font-bold mt-2 text-center">
+              Arrows to Move<br/>ZQSD to Look
+            </div>
         </div>
     </div>
   );
