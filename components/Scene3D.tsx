@@ -16,13 +16,13 @@ const Scene3D: React.FC<Scene3DProps> = ({ images, onRoomChange }) => {
   
   // Character Refs
   const characterRef = useRef<THREE.Group | null>(null);
-  const characterSpeed = 1.2; 
+  const characterSpeed = 1.5; 
   const keysPressed = useRef<{ [key: string]: boolean }>({});
 
   // Interaction state
   const isDragging = useRef(false);
   const previousMousePosition = useRef({ x: 0, y: 0 });
-  const cameraAngle = useRef({ theta: 0, phi: Math.PI / 2.5 });
+  const cameraAngle = useRef({ theta: Math.PI / 2, phi: Math.PI / 2.5 });
 
   // Audio State
   const [isPlaying, setIsPlaying] = useState(false);
@@ -33,38 +33,34 @@ const Scene3D: React.FC<Scene3DProps> = ({ images, onRoomChange }) => {
   const ROTUNDA_POS = { x: 0, z: -350 };
 
   useEffect(() => {
-    // Audio Init - Titanic Style Cinematic
-    const url = "https://cdn.pixabay.com/audio/2021/09/06/audio_3464195b0d.mp3";
+    // Audio Init - Classical Piano (Erik Satie - Gymnopedie No 1)
+    const url = "https://cdn.pixabay.com/audio/2022/05/27/audio_1808fbf07a.mp3";
     const audio = new Audio(url);
     audio.loop = true;
-    audio.volume = 1.0; 
+    audio.volume = 0.6; 
     audio.crossOrigin = "anonymous";
     audioRef.current = audio;
 
-    // Attempt Autoplay
-    const playPromise = audio.play();
-    if (playPromise !== undefined) {
-      playPromise
-        .then(() => {
-          setIsPlaying(true);
-        })
-        .catch((error) => {
-          console.log("Autoplay prevented by browser. Waiting for interaction.", error);
-          setIsPlaying(false);
-        });
-    }
-
-    // Interaction Fallback
-    const handleInteraction = () => {
+    const tryPlay = () => {
       if (audioRef.current && audioRef.current.paused) {
         audioRef.current.play()
           .then(() => setIsPlaying(true))
-          .catch(e => console.error("Interaction play failed", e));
+          .catch((e) => console.log("Waiting for user interaction to play audio", e));
       }
     };
+
+    // Attempt autoplay
+    tryPlay();
+
+    // Interaction Fallback
+    const handleInteraction = () => {
+      tryPlay();
+      document.removeEventListener('click', handleInteraction);
+      document.removeEventListener('keydown', handleInteraction);
+    };
     
-    document.addEventListener('click', handleInteraction, { once: true });
-    document.addEventListener('keydown', handleInteraction, { once: true });
+    document.addEventListener('click', handleInteraction);
+    document.addEventListener('keydown', handleInteraction);
 
     return () => {
       document.removeEventListener('click', handleInteraction);
@@ -91,9 +87,11 @@ const Scene3D: React.FC<Scene3DProps> = ({ images, onRoomChange }) => {
     
     if (room === 'library') {
       characterRef.current.position.set(LIBRARY_POS.x, -10, LIBRARY_POS.z + 60);
+      cameraAngle.current.theta = Math.PI / 2; // Reset angle
       if (onRoomChange) onRoomChange('library');
     } else {
       characterRef.current.position.set(ROTUNDA_POS.x, -10, ROTUNDA_POS.z + 60);
+      cameraAngle.current.theta = Math.PI / 2;
       if (onRoomChange) onRoomChange('rotunda');
     }
   };
@@ -431,44 +429,57 @@ const Scene3D: React.FC<Scene3DProps> = ({ images, onRoomChange }) => {
       }
       snowMesh.instanceMatrix.needsUpdate = true;
 
-      // CAMERA-RELATIVE CHARACTER MOVEMENT
-      if (characterRef.current) {
+      // MOVEMENT LOGIC
+      if (characterRef.current && cameraRef.current) {
           const char = characterRef.current;
           let isMoving = false;
           const speed = characterSpeed;
 
-          // Determine input vector (Screen Space)
-          // Forward (+1) = Up/W/Z. Backward (-1) = Down/S.
-          // Right (+1) = Right/D. Left (-1) = Left/A/Q.
+          // Note: using e.code handles physical key positions regardless of layout
+          // KeyW = Top Left (QWERTY W / AZERTY Z)
+          // KeyS = Middle Left (S)
+          // KeyA = Left (QWERTY A / AZERTY Q)
+          // KeyD = Right (D)
+          
           let inputFwd = 0;
           let inputRight = 0;
 
-          if (keysPressed.current['ArrowUp'] || keysPressed.current['KeyW'] || keysPressed.current['KeyZ']) inputFwd = 1;
+          if (keysPressed.current['ArrowUp'] || keysPressed.current['KeyW']) inputFwd = 1;
           if (keysPressed.current['ArrowDown'] || keysPressed.current['KeyS']) inputFwd = -1;
-          if (keysPressed.current['ArrowLeft'] || keysPressed.current['KeyA'] || keysPressed.current['KeyQ']) inputRight = -1;
+          if (keysPressed.current['ArrowLeft'] || keysPressed.current['KeyA']) inputRight = -1;
           if (keysPressed.current['ArrowRight'] || keysPressed.current['KeyD']) inputRight = 1;
 
           if (inputFwd !== 0 || inputRight !== 0) {
               isMoving = true;
               
-              const theta = cameraAngle.current.theta;
-              const camFwdX = -Math.cos(theta);
-              const camFwdZ = -Math.sin(theta);
-              const camRightX = -Math.sin(theta);
-              const camRightZ = Math.cos(theta);
+              // Get camera direction (ignore Y for movement plane)
+              const camDir = new THREE.Vector3();
+              cameraRef.current.getWorldDirection(camDir);
+              camDir.y = 0;
+              camDir.normalize();
 
-              const dx = (camFwdX * inputFwd + camRightX * inputRight) * speed;
-              const dz = (camFwdZ * inputFwd + camRightZ * inputRight) * speed;
+              // Calculate Right vector
+              const camRight = new THREE.Vector3();
+              camRight.crossVectors(camDir, new THREE.Vector3(0, 1, 0));
 
-              const targetRot = Math.atan2(dx, dz);
-              const rotDiff = targetRot - char.rotation.y;
-              let deltaRot = rotDiff;
-              if (deltaRot > Math.PI) deltaRot -= Math.PI * 2;
-              if (deltaRot < -Math.PI) deltaRot += Math.PI * 2;
-              char.rotation.y += deltaRot * 0.2;
+              // Calculate movement vector
+              const moveVec = new THREE.Vector3()
+                .addScaledVector(camDir, inputFwd)
+                .addScaledVector(camRight, inputRight)
+                .normalize()
+                .multiplyScalar(speed);
 
-              const nextX = char.position.x + dx;
-              const nextZ = char.position.z + dz;
+              // Apply movement
+              const nextX = char.position.x + moveVec.x;
+              const nextZ = char.position.z + moveVec.z;
+
+              // Rotate character to face movement
+              const targetRot = Math.atan2(moveVec.x, moveVec.z);
+              // Smooth rotation
+              let rotDiff = targetRot - char.rotation.y;
+              while (rotDiff > Math.PI) rotDiff -= Math.PI * 2;
+              while (rotDiff < -Math.PI) rotDiff += Math.PI * 2;
+              char.rotation.y += rotDiff * 0.2;
 
               // COLLISION LOGIC
               const distLib = Math.sqrt(nextX**2 + nextZ**2);
@@ -505,9 +516,11 @@ const Scene3D: React.FC<Scene3DProps> = ({ images, onRoomChange }) => {
       if (characterRef.current) {
           const charPos = characterRef.current.position;
           const r = 40;
+          // Calculate camera offset based on manual spherical coords
           const offsetX = r * Math.sin(cameraAngle.current.phi) * Math.cos(cameraAngle.current.theta);
           const offsetY = r * Math.cos(cameraAngle.current.phi);
           const offsetZ = r * Math.sin(cameraAngle.current.phi) * Math.sin(cameraAngle.current.theta);
+          
           camera.position.lerp(new THREE.Vector3(charPos.x + offsetX, charPos.y + offsetY, charPos.z + offsetZ), 0.1);
           camera.lookAt(charPos.x, charPos.y + 10, charPos.z);
       }
@@ -657,7 +670,7 @@ const Scene3D: React.FC<Scene3DProps> = ({ images, onRoomChange }) => {
             <div className={`w-3 h-3 rounded-full ${isPlaying ? 'bg-brand-pink animate-pulse' : 'bg-slate-500'}`} />
             <div className="flex flex-col text-left">
               <span className="text-xs font-bold uppercase tracking-wider opacity-80">Now Playing</span>
-              <span className="text-sm font-serif italic">Céline Dion - My Heart Will Go On</span>
+              <span className="text-sm font-serif italic">Gymnopedie No. 1 - Satie</span>
             </div>
           </button>
         </div>
