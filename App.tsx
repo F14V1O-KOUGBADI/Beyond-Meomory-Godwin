@@ -16,13 +16,18 @@ const PRODUCTS: Product[] = [
 export type OriginTheme = 'European' | 'African' | 'Asian';
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'home' | 'library' | 'shop' | 'advisor' | 'tokenomics' | 'metaverse'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'onboarding' | 'library' | 'shop' | 'advisor' | 'tokenomics' | 'metaverse'>('home');
   const [isWalletConnected, setIsWalletConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState('');
 
   // --- ORIGIN / THEME STATE ---
   const [showOriginModal, setShowOriginModal] = useState(false);
   const [selectedTheme, setSelectedTheme] = useState<OriginTheme>('European');
+
+  // --- ONBOARDING / UPLOAD STATE ---
+  const [uploadAge, setUploadAge] = useState('');
+  const [uploadDesc, setUploadDesc] = useState('');
+  const [uploadImage, setUploadImage] = useState<string | null>(null);
 
   // --- LIBRARY STATE ---
   const [memories, setMemories] = useState<Memory[]>([]);
@@ -57,6 +62,42 @@ const App: React.FC = () => {
   const handleOriginSelection = (theme: OriginTheme) => {
     setSelectedTheme(theme);
     setShowOriginModal(false);
+    setCurrentView('onboarding'); // Go to onboarding instead of library
+  };
+
+  // Handle Image Upload for Onboarding
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const imageUrl = URL.createObjectURL(file);
+      setUploadImage(imageUrl);
+    }
+  };
+
+  const handleFinishOnboarding = async () => {
+    if (!uploadDesc.trim()) return;
+    
+    setIsAnalyzing(true);
+    // Analyze the initial memory
+    const { emotions, themes } = await analyzeMemory(uploadDesc);
+    
+    const newMemory: Memory = {
+      id: Date.now().toString(),
+      content: uploadDesc,
+      date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+      emotions,
+      themes,
+      image: uploadImage || undefined,
+      ageAtMoment: uploadAge
+    };
+
+    setMemories([newMemory, ...memories]);
+    
+    // Reset and go to library
+    setUploadAge('');
+    setUploadDesc('');
+    setUploadImage(null);
+    setIsAnalyzing(false);
     setCurrentView('library');
   };
 
@@ -104,62 +145,64 @@ const App: React.FC = () => {
       {/* --- ORIGIN SELECTION MODAL --- */}
       {showOriginModal && (
         <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-6">
-          <div className="max-w-4xl w-full bg-brand-surface border border-brand-purple/20 rounded-2xl p-8 md:p-12 relative overflow-hidden">
+          <div className="max-w-5xl w-full bg-brand-surface border border-brand-purple/20 rounded-2xl p-8 md:p-12 relative overflow-hidden">
             {/* Background decoration */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-brand-purple/10 rounded-full blur-[80px]"></div>
             
-            <h2 className="text-3xl md:text-4xl font-serif text-white text-center mb-4">Honor Your Roots</h2>
+            <h2 className="text-3xl md:text-5xl font-serif text-white text-center mb-4">Honor Your Roots</h2>
             <p className="text-slate-400 text-center mb-12 max-w-lg mx-auto">
               Your heritage shapes your digital sanctuary. Select your origin to customize your Metaverse architecture.
             </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {/* African Card */}
               <button 
                 onClick={() => handleOriginSelection('African')}
-                className="group relative h-80 rounded-xl overflow-hidden border border-white/10 hover:border-brand-yellow/50 transition-all hover:scale-105"
+                className="group relative h-96 rounded-xl overflow-hidden border border-white/10 hover:border-brand-yellow/50 transition-all hover:scale-105"
               >
-                <img src="https://images.unsplash.com/photo-1523805009345-7448845a9e53?auto=format&fit=crop&q=80&w=600" alt="African" className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent"></div>
-                <div className="absolute bottom-0 left-0 p-6">
-                  <h3 className="text-2xl font-serif text-brand-yellow mb-1">African</h3>
-                  <p className="text-xs text-slate-300">Warmth, Earth, & Gold</p>
+                <img src="https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?q=80&w=800&auto=format&fit=crop" alt="African" className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-90 transition-opacity duration-700" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
+                <div className="absolute bottom-0 left-0 p-8 text-left w-full">
+                  <h3 className="text-3xl font-serif text-brand-yellow mb-2">African</h3>
+                  <p className="text-xs text-slate-300 font-medium tracking-widest uppercase">Warmth, Earth, & Gold</p>
+                  <p className="mt-2 text-xs text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0 duration-500">
+                    A sanctuary built from the eternal earth, bathed in golden sunset light.
+                  </p>
                 </div>
               </button>
 
               {/* European Card */}
               <button 
                 onClick={() => handleOriginSelection('European')}
-                className="group relative h-80 rounded-xl overflow-hidden border border-white/10 hover:border-brand-purple/50 transition-all hover:scale-105"
+                className="group relative h-96 rounded-xl overflow-hidden border border-white/10 hover:border-brand-purple/50 transition-all hover:scale-105"
               >
-                <img src="https://images.unsplash.com/photo-1548625361-12c62c2cb989?auto=format&fit=crop&q=80&w=600" alt="European" className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent"></div>
-                <div className="absolute bottom-0 left-0 p-6">
-                  <h3 className="text-2xl font-serif text-brand-purple mb-1">European</h3>
-                  <p className="text-xs text-slate-300">Marble, History, & Class</p>
+                <img src="https://images.unsplash.com/photo-1552432552-06c0b3d6ee56?q=80&w=800&auto=format&fit=crop" alt="European" className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-90 transition-opacity duration-700" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
+                <div className="absolute bottom-0 left-0 p-8 text-left w-full">
+                  <h3 className="text-3xl font-serif text-brand-purple mb-2">European</h3>
+                  <p className="text-xs text-slate-300 font-medium tracking-widest uppercase">Marble, History, & Class</p>
+                  <p className="mt-2 text-xs text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0 duration-500">
+                    Grand halls of white marble and classic columns echoing through time.
+                  </p>
                 </div>
               </button>
 
               {/* Asian Card */}
               <button 
                 onClick={() => handleOriginSelection('Asian')}
-                className="group relative h-80 rounded-xl overflow-hidden border border-white/10 hover:border-brand-pink/50 transition-all hover:scale-105"
+                className="group relative h-96 rounded-xl overflow-hidden border border-white/10 hover:border-brand-pink/50 transition-all hover:scale-105"
               >
-                <img src="https://images.unsplash.com/photo-1542640244-7e672d6bd4e8?auto=format&fit=crop&q=80&w=600" alt="Asian" className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent"></div>
-                <div className="absolute bottom-0 left-0 p-6">
-                  <h3 className="text-2xl font-serif text-brand-pink mb-1">Asian</h3>
-                  <p className="text-xs text-slate-300">Zen, Nature, & Harmony</p>
+                <img src="https://images.unsplash.com/photo-1528360983277-13d9b152c6d4?q=80&w=800&auto=format&fit=crop" alt="Asian" className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-90 transition-opacity duration-700" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
+                <div className="absolute bottom-0 left-0 p-8 text-left w-full">
+                  <h3 className="text-3xl font-serif text-brand-pink mb-2">Asian</h3>
+                  <p className="text-xs text-slate-300 font-medium tracking-widest uppercase">Zen, Nature, & Harmony</p>
+                  <p className="mt-2 text-xs text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0 duration-500">
+                    A peaceful retreat of red lacquer, jade, and whispering paper lanterns.
+                  </p>
                 </div>
               </button>
             </div>
-            
-            <button 
-              onClick={() => setShowOriginModal(false)}
-              className="mt-8 mx-auto block text-slate-500 text-sm hover:text-white transition-colors"
-            >
-              Skip for now (Default to European)
-            </button>
           </div>
         </div>
       )}
@@ -271,6 +314,78 @@ const App: React.FC = () => {
           </div>
         )}
 
+        {/* ================= ONBOARDING / UPLOAD VIEW ================= */}
+        {currentView === 'onboarding' && (
+          <div className="min-h-[calc(100vh-80px)] bg-brand-black flex items-center justify-center p-6 relative overflow-hidden">
+             {/* Background Image depending on Theme */}
+             <div className="absolute inset-0 opacity-20 pointer-events-none">
+                 <img 
+                    src={selectedTheme === 'African' ? 'https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?auto=format&fit=crop&q=80' : 
+                         selectedTheme === 'Asian' ? 'https://images.unsplash.com/photo-1542640244-7e672d6bd4e8?auto=format&fit=crop&q=80' :
+                         'https://images.unsplash.com/photo-1548625361-12c62c2cb989?auto=format&fit=crop&q=80'}
+                    className="w-full h-full object-cover blur-sm"
+                    alt="Theme bg"
+                 />
+                 <div className="absolute inset-0 bg-gradient-to-t from-brand-black via-brand-black/80 to-transparent"></div>
+             </div>
+
+             <div className="max-w-3xl w-full bg-brand-surface/90 backdrop-blur-xl border border-white/10 p-8 md:p-12 rounded-2xl shadow-2xl relative z-10">
+                <div className="text-center mb-10">
+                   <h2 className="font-serif text-4xl text-white mb-2">The Harvest</h2>
+                   <p className="text-slate-400">Deposit your first memory seed into the {selectedTheme} vault.</p>
+                </div>
+
+                <div className="space-y-6">
+                   {/* 1. Photo Upload */}
+                   <div className="flex flex-col items-center justify-center">
+                      <div className="w-full h-64 border-2 border-dashed border-white/20 rounded-xl flex flex-col items-center justify-center hover:bg-white/5 transition-colors cursor-pointer relative overflow-hidden bg-black/50">
+                          {uploadImage ? (
+                            <img src={uploadImage} alt="Preview" className="w-full h-full object-contain" />
+                          ) : (
+                            <>
+                              <span className="text-4xl mb-2">📸</span>
+                              <span className="text-sm text-slate-400">Click to upload a photograph</span>
+                            </>
+                          )}
+                          <input type="file" accept="image/*" onChange={handleImageUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                      </div>
+                   </div>
+
+                   {/* 2. Age Input */}
+                   <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-brand-pink mb-2">Age at that moment</label>
+                      <input 
+                        type="text" 
+                        value={uploadAge}
+                        onChange={(e) => setUploadAge(e.target.value)}
+                        placeholder="e.g. 7 years old"
+                        className="w-full bg-black/50 border border-white/10 rounded-lg p-4 text-white placeholder:text-slate-600 focus:border-brand-purple focus:outline-none"
+                      />
+                   </div>
+
+                   {/* 3. Description */}
+                   <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-brand-purple mb-2">Memory Description</label>
+                      <textarea 
+                        value={uploadDesc}
+                        onChange={(e) => setUploadDesc(e.target.value)}
+                        placeholder="Describe what happened, how you felt..."
+                        className="w-full h-32 bg-black/50 border border-white/10 rounded-lg p-4 text-white placeholder:text-slate-600 focus:border-brand-purple focus:outline-none resize-none font-serif"
+                      />
+                   </div>
+
+                   <button 
+                      onClick={handleFinishOnboarding}
+                      disabled={!uploadDesc || isAnalyzing}
+                      className="w-full py-4 mt-4 bg-gradient-to-r from-brand-purple to-brand-pink text-black font-bold rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(157,142,255,0.3)]"
+                   >
+                      {isAnalyzing ? "Encrypting into Blockchain..." : "Preserve Memory Forever"}
+                   </button>
+                </div>
+             </div>
+          </div>
+        )}
+
         {/* ================= METAVERSE VIEW ================= */}
         {currentView === 'metaverse' && (
              <div className="h-[calc(100vh-80px)] w-full relative bg-black">
@@ -329,22 +444,36 @@ const App: React.FC = () => {
                    </div>
                  ) : (
                    memories.map((mem) => (
-                     <div key={mem.id} className="bg-slate-50 p-8 rounded-2xl shadow-sm hover:shadow-xl transition-shadow border border-slate-100 group">
-                        <div className="flex justify-between items-start mb-4">
-                           <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{mem.date}</span>
-                           <div className="flex gap-2">
-                              {mem.emotions.map(emo => (
-                                <span key={emo} className="px-2 py-1 bg-brand-purple/10 text-brand-purple text-xs rounded-full font-medium">{emo}</span>
-                              ))}
-                           </div>
-                        </div>
-                        <p className="font-serif text-xl text-slate-700 leading-relaxed mb-6 group-hover:text-black transition-colors">
-                          "{mem.content}"
-                        </p>
-                        <div className="pt-4 border-t border-slate-200 flex gap-2">
-                           {mem.themes.map(theme => (
-                             <span key={theme} className="text-xs text-slate-500 font-medium">#{theme}</span>
-                           ))}
+                     <div key={mem.id} className="bg-slate-50 p-6 rounded-2xl shadow-sm hover:shadow-xl transition-shadow border border-slate-100 group flex flex-col md:flex-row gap-6">
+                        {/* Memory Image Display */}
+                        {mem.image && (
+                          <div className="w-full md:w-32 h-32 flex-shrink-0 rounded-lg overflow-hidden bg-slate-200 relative">
+                             <img src={mem.image} alt="Memory" className="w-full h-full object-cover" />
+                             {mem.ageAtMoment && (
+                               <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] text-center py-1 font-bold">
+                                 Age: {mem.ageAtMoment}
+                               </div>
+                             )}
+                          </div>
+                        )}
+
+                        <div className="flex-1">
+                          <div className="flex justify-between items-start mb-4">
+                             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{mem.date}</span>
+                             <div className="flex gap-2">
+                                {mem.emotions.map(emo => (
+                                  <span key={emo} className="px-2 py-1 bg-brand-purple/10 text-brand-purple text-xs rounded-full font-medium">{emo}</span>
+                                ))}
+                             </div>
+                          </div>
+                          <p className="font-serif text-xl text-slate-700 leading-relaxed mb-6 group-hover:text-black transition-colors">
+                            "{mem.content}"
+                          </p>
+                          <div className="pt-4 border-t border-slate-200 flex gap-2">
+                             {mem.themes.map(theme => (
+                               <span key={theme} className="text-xs text-slate-500 font-medium">#{theme}</span>
+                             ))}
+                          </div>
                         </div>
                      </div>
                    ))

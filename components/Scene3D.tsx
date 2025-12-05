@@ -106,46 +106,49 @@ const Scene3D: React.FC<Scene3DProps> = ({ images, theme, onRoomChange }) => {
     switch (theme) {
       case 'African':
         return {
-          bg: '#1a120b',
-          fog: '#1a120b',
-          floor: '#8d6e63', // Earth/Clay
-          floorAlt: '#5d4037', // Darker Earth
-          wall: '#4e342e', // Mud wall
-          columnMain: '#3e2723', // Dark wood
-          columnDetail: '#ffb300', // Gold/Tribal Paint
-          lightColor: '#ffcc80', // Warm Sunset
-          lightIntensity: 0.6,
-          sunColor: '#ff8f00',
-          sunIntensity: 1.2
+          bg: '#2E1A0F', // Deep Clay Brown
+          fog: '#2E1A0F',
+          floor: '#3E2723', // Dark Earth
+          floorAlt: '#5D4037', // Light Earth
+          wall: '#4E342E', // Clay Wall
+          columnMain: '#261208', // Ebony Wood
+          columnDetail: '#FFAB00', // Deep Gold/Amber
+          lightColor: '#FF6D00', // Intense Sunset Orange
+          lightIntensity: 0.8,
+          sunColor: '#FF9100', // Golden Sun
+          sunIntensity: 1.5,
+          skylight: '#FFAB00' // Gold
         };
       case 'Asian':
         return {
-          bg: '#051e12', // Dark Greenish Black
-          fog: '#051e12',
-          floor: '#1b5e20', // Jade/Dark Green Stone
-          floorAlt: '#2e7d32',
-          wall: '#212121', // Dark Wood/Charcoal
-          columnMain: '#b71c1c', // Lacquer Red
-          columnDetail: '#ffd700', // Gold
-          lightColor: '#e0f2f1', // Cool/Pale
-          lightIntensity: 0.5,
-          sunColor: '#fff9c4',
-          sunIntensity: 0.8
+          bg: '#000806', // Almost Black Green
+          fog: '#000806',
+          floor: '#1B5E20', // Deep Jade
+          floorAlt: '#004D40', // Dark Teal
+          wall: '#1A1A1A', // Charcoal Black
+          columnMain: '#880E4F', // Deep Lacquer Red
+          columnDetail: '#FDD835', // Gold
+          lightColor: '#C8E6C9', // Pale Jade Moonlight
+          lightIntensity: 0.6,
+          sunColor: '#E0F7FA', // Cold White Sun
+          sunIntensity: 1.0,
+          skylight: '#A5D6A7'
         };
       case 'European':
       default:
         return {
-          bg: '#000000',
-          fog: '#000000',
-          floor: '#2d1e15', // Wood
-          floorAlt: '#3e2723',
-          wall: '#26160c', // Dark Books
-          columnMain: '#5d4037', // Wood
-          columnDetail: '#880e4f', // Red Velvet/Marble
-          lightColor: '#ffcc88', // Candle
-          lightIntensity: 0.4,
-          sunColor: '#ffe0b2',
-          sunIntensity: 0.8
+          bg: '#050A15', // Deep Midnight Blue
+          fog: '#050A15',
+          floor: '#ECEFF1', // White Marble
+          floorAlt: '#CFD8DC', // Grey Marble
+          wall: '#263238', // Dark Stone
+          columnMain: '#FAFAFA', // White Column
+          columnDetail: '#1A237E', // Deep Royal Blue
+          lightColor: '#E3F2FD', // Cold Blue Light
+          lightIntensity: 0.5,
+          sunColor: '#FFFFFF', // Pure White Sun
+          sunIntensity: 1.2,
+          skylight: '#90CAF9'
         };
     }
   };
@@ -158,7 +161,7 @@ const Scene3D: React.FC<Scene3DProps> = ({ images, theme, onRoomChange }) => {
     // --- Scene Init ---
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(themeConfig.bg); 
-    scene.fog = new THREE.FogExp2(themeConfig.fog, 0.002); 
+    scene.fog = new THREE.FogExp2(themeConfig.fog, 0.003); 
     sceneRef.current = scene;
 
     const width = mountRef.current.clientWidth;
@@ -227,13 +230,13 @@ const Scene3D: React.FC<Scene3DProps> = ({ images, theme, onRoomChange }) => {
     const faceTex = new THREE.CanvasTexture(faceCanvas);
 
     // --- MATERIALS ---
-    const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.4, metalness: 0.1 });
+    const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.3, metalness: theme === 'European' ? 0.3 : 0.1 });
     const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.9 });
     const glassMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, transmission: 0.9, opacity: 1, metalness: 0, roughness: 0, thickness: 0.5 });
     
     // Theme-based Column Materials
     const columnMainMat = new THREE.MeshStandardMaterial({ color: themeConfig.columnMain, roughness: 0.5 });
-    const columnDetailMat = new THREE.MeshStandardMaterial({ color: themeConfig.columnDetail, roughness: 0.6, metalness: theme === 'African' || theme === 'Asian' ? 0.4 : 0 }); 
+    const columnDetailMat = new THREE.MeshStandardMaterial({ color: themeConfig.columnDetail, roughness: 0.6, metalness: 0.6 }); 
     
     // Rotunda Materials (Winter/Separate)
     const rotundaFloorMat = new THREE.MeshStandardMaterial({ map: snowFloorTex, roughness: 0.9 });
@@ -265,13 +268,12 @@ const Scene3D: React.FC<Scene3DProps> = ({ images, theme, onRoomChange }) => {
       walls.position.y = 30;
       group.add(walls);
 
-      const domeColor = theme === 'Asian' ? '#1a1a1a' : theme === 'African' ? '#3e2723' : '#000000';
-      const dome = new THREE.Mesh(new THREE.SphereGeometry(120, 64, 32, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: domeColor, side: THREE.BackSide }));
+      // Dome color matching the deep background for infinity effect
+      const dome = new THREE.Mesh(new THREE.SphereGeometry(120, 64, 32, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: themeConfig.bg, side: THREE.BackSide }));
       dome.position.y = 70;
       group.add(dome);
 
-      const skylightColor = theme === 'African' ? '#ff9800' : theme === 'Asian' ? '#b2dfdb' : '#FFDF8C';
-      const skylight = new THREE.Mesh(new THREE.CircleGeometry(30, 32), new THREE.MeshBasicMaterial({ color: skylightColor })); 
+      const skylight = new THREE.Mesh(new THREE.CircleGeometry(30, 32), new THREE.MeshBasicMaterial({ color: themeConfig.skylight })); 
       skylight.rotation.x = Math.PI / 2;
       skylight.position.y = 130;
       group.add(skylight);
@@ -293,7 +295,9 @@ const Scene3D: React.FC<Scene3DProps> = ({ images, theme, onRoomChange }) => {
          const cGroup = new THREE.Group();
          cGroup.position.set(Math.cos(angle)*r, -10, Math.sin(angle)*r);
          cGroup.rotation.y = -angle + Math.PI/2;
-         cGroup.add(new THREE.Mesh(new THREE.BoxGeometry(10, 4, 10), new THREE.MeshStandardMaterial({color:'#212121'})).translateY(2));
+         
+         const baseColor = theme === 'African' ? '#3E2723' : theme === 'Asian' ? '#1A1A1A' : '#ECEFF1';
+         cGroup.add(new THREE.Mesh(new THREE.BoxGeometry(10, 4, 10), new THREE.MeshStandardMaterial({color: baseColor})).translateY(2));
          
          if (theme === 'Asian') {
              // Asian style divider
@@ -305,13 +309,13 @@ const Scene3D: React.FC<Scene3DProps> = ({ images, theme, onRoomChange }) => {
              cGroup.add(new THREE.Mesh(new THREE.BoxGeometry(10, 15, 10), glassMat).translateY(11.5));
          }
 
-         cGroup.add(new THREE.Mesh(new THREE.BoxGeometry(10.2, 0.5, 10.2), new THREE.MeshStandardMaterial({color:'#111'})).translateY(19));
+         cGroup.add(new THREE.Mesh(new THREE.BoxGeometry(10.2, 0.5, 10.2), new THREE.MeshStandardMaterial({color: themeConfig.columnDetail})).translateY(19));
          
-         const art = new THREE.Mesh(new THREE.SphereGeometry(2), new THREE.MeshStandardMaterial({ color: '#FFA5B7', metalness: 0.8, roughness: 0.2 })); // Pink Art
+         const art = new THREE.Mesh(new THREE.SphereGeometry(2), new THREE.MeshStandardMaterial({ color: theme === 'European' ? '#ECEFF1' : '#FFA5B7', metalness: 0.8, roughness: 0.2 })); 
          art.position.y = 7;
          cGroup.add(art);
          
-         const light = new THREE.PointLight(0x9D8EFF, 1.5, 15); // Purple Light
+         const light = new THREE.PointLight(themeConfig.columnDetail, 1.5, 15); 
          light.position.y = 10;
          cGroup.add(light);
          group.add(cGroup);
@@ -409,6 +413,7 @@ const Scene3D: React.FC<Scene3DProps> = ({ images, theme, onRoomChange }) => {
     scene.add(ambientLight);
     const sunLight = new THREE.DirectionalLight(themeConfig.sunColor, themeConfig.sunIntensity);
     sunLight.position.set(50, 150, 50);
+    sunLight.castShadow = true;
     scene.add(sunLight);
 
     // --- PARTICLES ---

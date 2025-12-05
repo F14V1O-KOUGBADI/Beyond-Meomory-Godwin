@@ -4,6 +4,8 @@ export interface Memory {
   date: string;
   emotions: string[];
   themes: string[];
+  image?: string; // URL de l'image uploadée
+  ageAtMoment?: string; // Age sur la photo
 }
 
 export interface ChatMessage {
