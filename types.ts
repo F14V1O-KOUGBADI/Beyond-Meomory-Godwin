@@ -1,18 +1,28 @@
-export interface CaptionSuggestion {
+export interface Memory {
+  id: string;
+  content: string;
+  date: string;
+  emotions: string[];
+  themes: string[];
+}
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'ai';
   text: string;
-  category: 'funny' | 'sarcastic' | 'wholesome' | 'relatable';
+  isTyping?: boolean;
 }
 
-export interface MemeState {
-  originalImage: string | null; // Base64
-  currentImage: string | null; // Base64 (might be edited)
-  selectedCaption: string;
-  topText: string;
-  bottomText: string;
-  isLoading: boolean;
-  loadingMessage: string;
+export interface Product {
+  id: string;
+  title: string;
+  category: 'Monuments' | 'Decorations' | 'Univers';
+  price: number;
+  rarity: 'Classic' | 'Rare' | 'Legendary' | 'Immortal';
+  image: string;
 }
 
+// Configuration pour Gemini
 export enum GeminiModel {
-  EDITING = 'gemini-2.5-flash-image',
+  TEXT = 'gemini-2.5-flash',
 }
