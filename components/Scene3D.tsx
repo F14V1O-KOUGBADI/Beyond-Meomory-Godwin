@@ -1,19 +1,21 @@
 import React, { useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
+import { Memory } from '../types';
 
 interface Scene3DProps {
-  images: { url: string; roomId: 'library' | 'rotunda' }[];
+  memories: Memory[];
   theme: 'European' | 'African' | 'Asian';
   onRoomChange?: (room: 'library' | 'rotunda') => void;
 }
 
-const Scene3D: React.FC<Scene3DProps> = ({ images, theme, onRoomChange }) => {
+const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, onRoomChange }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const reqRef = useRef<number>(0);
   const galleryGroupRef = useRef<THREE.Group | null>(null);
+  const artifactsRef = useRef<THREE.Mesh[]>([]);
   
   // Character Refs
   const characterRef = useRef<THREE.Group | null>(null);
@@ -153,6 +155,22 @@ const Scene3D: React.FC<Scene3DProps> = ({ images, theme, onRoomChange }) => {
     }
   };
 
+  // --- Emotion Color Mapping ---
+  const getEmotionColor = (emotions: string[]): number => {
+    if (!emotions || emotions.length === 0) return 0xFFFFFF;
+    const e = emotions[0].toLowerCase();
+    
+    // Bright neon colors for hologram feel
+    if (e.includes('joy') || e.includes('happy') || e.includes('excite')) return 0xFFD700; // Gold
+    if (e.includes('sad') || e.includes('grief') || e.includes('regret')) return 0x2962FF; // Deep Blue
+    if (e.includes('love') || e.includes('romance') || e.includes('passion')) return 0xFF1744; // Red/Pink
+    if (e.includes('nostalg') || e.includes('memory')) return 0xFF6D00; // Orange/Sepia
+    if (e.includes('peace') || e.includes('calm') || e.includes('serene')) return 0x00E676; // Bright Green
+    if (e.includes('fear') || e.includes('anxiety')) return 0x6200EA; // Deep Purple
+    
+    return 0x00B0FF; // Default Tech Blue
+  };
+
   useEffect(() => {
     if (!mountRef.current) return;
 
@@ -290,6 +308,7 @@ const Scene3D: React.FC<Scene3DProps> = ({ images, theme, onRoomChange }) => {
           group.add(colGroup);
       }
       
+      // Standard Display Cases
       [0, Math.PI/2, Math.PI, Math.PI*1.5].forEach((angle, i) => {
          const r = 35;
          const cGroup = new THREE.Group();
@@ -500,6 +519,24 @@ const Scene3D: React.FC<Scene3DProps> = ({ images, theme, onRoomChange }) => {
       }
       snowMesh.instanceMatrix.needsUpdate = true;
 
+      // Animate Artifacts (Floating Frames + Breathing Images)
+      artifactsRef.current.forEach((artifact, i) => {
+         // Gentle float
+         artifact.position.y = 5 + Math.sin(time + i) * 0.5;
+         
+         // Subtle rotation
+         // artifact.rotation.y = (initialRotation) + Math.sin(time * 0.5) * 0.05;
+
+         // Image pulsation (Material index 4 is the image)
+         if (Array.isArray(artifact.material)) {
+             const mat = artifact.material[4] as THREE.MeshBasicMaterial;
+             if (mat) {
+                 const pulse = 0.8 + Math.sin(time * 2 + i) * 0.2;
+                 mat.color.setHSL(0, 0, pulse); 
+             }
+         }
+      });
+
       // CAMERA CONTROLS (ZQSD / WASD physical)
       if (keysPressed.current['KeyA']) {
         cameraAngle.current.theta += 0.03;
@@ -624,11 +661,12 @@ const Scene3D: React.FC<Scene3DProps> = ({ images, theme, onRoomChange }) => {
     };
   }, [theme]); // Re-run when theme changes
 
-  // --- Render Images (unchanged logic) ---
+  // --- Render Images (Updated for Memories) ---
   useEffect(() => {
     if (!galleryGroupRef.current) return;
     const group = galleryGroupRef.current;
     
+    // Clear old artifacts
     while(group.children.length > 0){ 
       const child = group.children[0] as THREE.Mesh;
       if (child.geometry) child.geometry.dispose();
@@ -636,32 +674,51 @@ const Scene3D: React.FC<Scene3DProps> = ({ images, theme, onRoomChange }) => {
       else (child.material as any).dispose();
       group.remove(child); 
     }
+    
+    artifactsRef.current = []; // Reset reference list for animation
 
     const loader = new THREE.TextureLoader();
     
-    const libraryImgs = images.filter(i => i.roomId === 'library');
-    const rotundaImgs = images.filter(i => i.roomId === 'rotunda');
+    // Filter memories that have images
+    const visualMemories = memories.filter(m => m.image);
 
-    libraryImgs.forEach((item, index) => {
-        const angle = (index * (Math.PI/6)) + Math.PI; 
-        const r = 115;
+    visualMemories.forEach((memory, index) => {
+        const angle = (index * (Math.PI/6)) + Math.PI; // Distribute in circle
+        const r = 115; // Radius matches walls
         const x = Math.cos(angle)*r;
         const z = Math.sin(angle)*r;
-        loader.load(item.url, (tex) => {
+        
+        // Emotion Color for Frame
+        const frameColor = getEmotionColor(memory.emotions);
+
+        loader.load(memory.image!, (tex) => {
             tex.colorSpace = THREE.SRGBColorSpace;
             const aspect = tex.image.width/tex.image.height;
             let w=15, h=15; if(aspect>1) h=w/aspect; else w=h*aspect;
+            
+            // Frame Geometry
             const geo = new THREE.BoxGeometry(w, h, 0.5);
-            const mat = new THREE.MeshStandardMaterial({color:0xFFDF8C, roughness:0.2, metalness:0.8});
+            // Neon/Glowing Material for Frame
+            const mat = new THREE.MeshStandardMaterial({
+                color: frameColor, 
+                roughness: 0.2, 
+                metalness: 0.9,
+                emissive: frameColor,
+                emissiveIntensity: 0.5
+            });
+            // Image Material
             const imgMat = new THREE.MeshBasicMaterial({map:tex});
+            
             const mesh = new THREE.Mesh(geo, [mat,mat,mat,mat,imgMat,mat]);
             mesh.position.set(x, 5, z);
             mesh.lookAt(0, 5, 0);
+            
             group.add(mesh);
+            artifactsRef.current.push(mesh);
         });
     });
-    // (Rotunda images loading skipped for brevity but logic remains same)
-  }, [images]);
+
+  }, [memories]); // Re-run when memories change
 
   // --- Interaction Handlers ---
   const handleMouseDown = (e: React.MouseEvent) => {

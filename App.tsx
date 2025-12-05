@@ -389,7 +389,7 @@ const App: React.FC = () => {
         {/* ================= METAVERSE VIEW ================= */}
         {currentView === 'metaverse' && (
              <div className="h-[calc(100vh-80px)] w-full relative bg-black">
-                 <Scene3D images={[]} theme={selectedTheme} /> 
+                 <Scene3D memories={memories} theme={selectedTheme} /> 
                  <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/50 text-xs text-center pointer-events-none z-10">
                     Use <span className="font-bold text-brand-yellow">ZQSD</span> or <span className="font-bold text-brand-yellow">Arrows</span> to explore
                  </div>
