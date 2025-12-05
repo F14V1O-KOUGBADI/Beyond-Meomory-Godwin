@@ -5,10 +5,11 @@ import { Memory } from '../types';
 interface Scene3DProps {
   memories: Memory[];
   theme: 'European' | 'African' | 'Asian';
+  inventory: string[];
   onRoomChange?: (room: 'library' | 'rotunda') => void;
 }
 
-const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, onRoomChange }) => {
+const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, onRoomChange }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -109,50 +110,69 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, onRoomChange }) => {
 
   // --- Theme Colors Configuration ---
   const getThemeColors = () => {
+    // Override if "Nebula Skybox" (ID: 5) is purchased
+    const hasNebula = inventory.includes('5');
+    if (hasNebula) {
+        return {
+          bg: '#1A0033', // Deep Purple Space
+          fog: '#1A0033',
+          floor: '#2a2a2a', // Dark Floor
+          floorAlt: '#1a1a1a', 
+          wall: '#000000', 
+          columnMain: '#4A148C', 
+          columnDetail: '#00E5FF', 
+          lightColor: '#D1C4E9', 
+          lightIntensity: 0.8,
+          sunColor: '#E040FB', 
+          sunIntensity: 1.0,
+          skylight: '#7C4DFF' 
+        };
+    }
+
     switch (theme) {
       case 'African':
         return {
-          bg: '#2E1A0F', // Deep Clay Brown
+          bg: '#2E1A0F', 
           fog: '#2E1A0F',
-          floor: '#D4AF37', // Golden Sand
-          floorAlt: '#B8860B', // Dark Goldenrod
-          wall: '#4E342E', // Clay Wall
-          columnMain: '#3E2723', // Dark Wood
-          columnDetail: '#FFAB00', // Deep Gold/Amber
-          lightColor: '#FF6D00', // Intense Sunset Orange
+          floor: '#D4AF37', 
+          floorAlt: '#B8860B', 
+          wall: '#4E342E', 
+          columnMain: '#3E2723', 
+          columnDetail: '#FFAB00', 
+          lightColor: '#FF6D00', 
           lightIntensity: 0.9,
-          sunColor: '#FF9100', // Golden Sun
+          sunColor: '#FF9100', 
           sunIntensity: 1.5,
-          skylight: '#FFAB00' // Gold
+          skylight: '#FFAB00' 
         };
       case 'Asian':
         return {
-          bg: '#000806', // Almost Black Green
+          bg: '#000806', 
           fog: '#000806',
-          floor: '#2e7d32', // Deep Jade Green (Grass/Moss)
-          floorAlt: '#1b5e20', // Darker Green
-          wall: '#212121', // Dark Stone
-          columnMain: '#B71C1C', // Red Lacquer
-          columnDetail: '#FFD700', // Gold
-          lightColor: '#FFCDD2', // Soft Red Glow
+          floor: '#2e7d32', 
+          floorAlt: '#1b5e20', 
+          wall: '#212121', 
+          columnMain: '#B71C1C', 
+          columnDetail: '#FFD700', 
+          lightColor: '#FFCDD2', 
           lightIntensity: 0.7,
-          sunColor: '#FFEB3B', // Warm Sun
+          sunColor: '#FFEB3B', 
           sunIntensity: 1.1,
           skylight: '#81C784'
         };
       case 'European':
       default:
         return {
-          bg: '#050A15', // Deep Midnight Blue
+          bg: '#050A15', 
           fog: '#050A15',
-          floor: '#ECEFF1', // White Marble
-          floorAlt: '#CFD8DC', // Grey Marble
-          wall: '#263238', // Dark Stone
-          columnMain: '#FAFAFA', // White Column
-          columnDetail: '#1A237E', // Deep Royal Blue
-          lightColor: '#E3F2FD', // Cold Blue Light
+          floor: '#ECEFF1', 
+          floorAlt: '#CFD8DC', 
+          wall: '#263238', 
+          columnMain: '#FAFAFA', 
+          columnDetail: '#1A237E', 
+          lightColor: '#E3F2FD', 
           lightIntensity: 0.5,
-          sunColor: '#FFFFFF', // Pure White Sun
+          sunColor: '#FFFFFF', 
           sunIntensity: 1.2,
           skylight: '#90CAF9'
         };
@@ -364,6 +384,75 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, onRoomChange }) => {
       skylight.rotation.x = Math.PI / 2;
       skylight.position.y = 130;
       group.add(skylight);
+
+      // --- RENDER PURCHASED ITEMS ---
+      // 1. Marble Mausoleum (Monument)
+      if (inventory.includes('1')) {
+          const m = new THREE.Group();
+          m.position.set(50, -10, -50);
+          const base = new THREE.Mesh(new THREE.BoxGeometry(20, 15, 20), new THREE.MeshStandardMaterial({color:'#ffffff', roughness:0.2}));
+          base.position.y = 7.5;
+          m.add(base);
+          const pillars = [-8, 8].forEach(px => [-8, 8].forEach(pz => {
+              const p = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 15), new THREE.MeshStandardMaterial({color:'#eeeeee'}));
+              p.position.set(px, 7.5, pz);
+              m.add(p);
+          }));
+          const roof = new THREE.Mesh(new THREE.ConeGeometry(15, 8, 4), new THREE.MeshStandardMaterial({color:'#333'}));
+          roof.position.y = 19;
+          roof.rotation.y = Math.PI/4;
+          m.add(roof);
+          group.add(m);
+      }
+
+      // 2. Eternal Garden (Univers) - Adds extra flowers everywhere
+      if (inventory.includes('2')) {
+          const garden = new THREE.Group();
+          for(let i=0; i<300; i++) {
+              const f = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1, 5), new THREE.MeshStandardMaterial({color: Math.random()>.5 ? '#E91E63' : '#9C27B0'}));
+              f.position.set((Math.random()-0.5)*200, -9, (Math.random()-0.5)*200);
+              f.rotation.x = Math.PI;
+              garden.add(f);
+          }
+          group.add(garden);
+      }
+
+      // 3. Digital Candle (Decoration)
+      if (inventory.includes('3')) {
+          const candles = new THREE.Group();
+          for(let i=0; i<12; i++) {
+              const angle = (i/12)*Math.PI*2;
+              const c = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1), new THREE.MeshStandardMaterial({color:'#ffffff'}));
+              c.position.set(Math.cos(angle)*15, -9.5, Math.sin(angle)*15);
+              const flame = new THREE.PointLight('#FF6D00', 0.5, 5);
+              flame.position.y = 1;
+              c.add(flame);
+              candles.add(c);
+          }
+          group.add(candles);
+      }
+
+      // 4. Ancestral Statue (Monument)
+      if (inventory.includes('4')) {
+          const stat = new THREE.Group();
+          stat.position.set(-50, -10, -50);
+          const body = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 12), goldMat);
+          body.position.y = 6;
+          stat.add(body);
+          const head = new THREE.Mesh(new THREE.SphereGeometry(3), goldMat);
+          head.position.y = 14;
+          stat.add(head);
+          group.add(stat);
+      }
+
+      // 6. Golden Ring (Decoration)
+      if (inventory.includes('6')) {
+         const ring = new THREE.Mesh(new THREE.TorusGeometry(60, 1, 16, 100), goldMat);
+         ring.rotation.x = Math.PI/2;
+         ring.position.y = 40;
+         group.add(ring);
+      }
+
 
       // --- AFRICAN THEME: 8 STAGES OF LIFE ---
       if (theme === 'African') {
@@ -834,18 +923,6 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, onRoomChange }) => {
               group.add(colGroup);
           }
       }
-      
-      // Standard Display Cases (Only if NOT African/European/Asian) -> Effectively removed as all 3 themes cover cases, but logic remains for "Other"
-      if (!['African', 'European', 'Asian'].includes(theme)) {
-        [0, Math.PI/2, Math.PI, Math.PI*1.5].forEach((angle, i) => {
-           const r = 35;
-           const cGroup = new THREE.Group();
-           cGroup.position.set(Math.cos(angle)*r, -10, Math.sin(angle)*r);
-           cGroup.rotation.y = -angle + Math.PI/2;
-           cGroup.add(new THREE.Mesh(new THREE.BoxGeometry(10, 15, 10), glassMat).translateY(11.5));
-           group.add(cGroup);
-        });
-      }
 
       scene.add(group);
     };
@@ -1166,7 +1243,7 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, onRoomChange }) => {
         rendererRef.current.dispose();
       }
     };
-  }, [theme]); // Re-run when theme changes
+  }, [theme, inventory]); // Re-run when theme changes or inventory changes
 
   // --- Render Images (Updated for Memories) ---
   useEffect(() => {

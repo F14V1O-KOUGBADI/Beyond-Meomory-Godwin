@@ -10,7 +10,7 @@ const PRODUCTS: Product[] = [
   { id: '3', title: 'Digital Candle', category: 'Decorations', price: 0.05, rarity: 'Classic', image: 'https://images.unsplash.com/photo-1603006905003-be475563bc59?auto=format&fit=crop&q=80&w=600' },
   { id: '4', title: 'Ancestral Statue', category: 'Monuments', price: 1.2, rarity: 'Immortal', image: 'https://images.unsplash.com/photo-1544531586-fde5298cdd40?auto=format&fit=crop&q=80&w=600' },
   { id: '5', title: 'Nebula Skybox', category: 'Univers', price: 0.8, rarity: 'Legendary', image: 'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&q=80&w=600' },
-  { id: '6', title: 'Golden Frame', category: 'Decorations', price: 0.1, rarity: 'Classic', image: 'https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?auto=format&fit=crop&q=80&w=600' },
+  { id: '6', title: 'Golden Ring', category: 'Decorations', price: 0.1, rarity: 'Classic', image: 'https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?auto=format&fit=crop&q=80&w=600' },
 ];
 
 export type OriginTheme = 'European' | 'African' | 'Asian';
@@ -19,6 +19,10 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'home' | 'onboarding' | 'library' | 'shop' | 'advisor' | 'tokenomics' | 'metaverse'>('home');
   const [isWalletConnected, setIsWalletConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState('');
+
+  // --- ECONOMY STATE ---
+  const [balance, setBalance] = useState(5.0); // Initial balance in ETH/MEME
+  const [inventory, setInventory] = useState<string[]>([]); // Array of Product IDs
 
   // --- ORIGIN / THEME STATE ---
   const [showOriginModal, setShowOriginModal] = useState(false);
@@ -133,6 +137,17 @@ const App: React.FC = () => {
     setLibraryImage(null);
     setLibraryAge('');
     setIsAnalyzing(false);
+  };
+
+  const handlePurchase = (product: Product) => {
+    if (inventory.includes(product.id)) return;
+    if (balance >= product.price) {
+      setBalance(prev => prev - product.price);
+      setInventory(prev => [...prev, product.id]);
+      alert(`You have successfully purchased ${product.title}. It has been added to your Metaverse.`);
+    } else {
+      alert("Insufficient funds. Stake more tokens to earn rewards.");
+    }
   };
 
   const handleAdvisorSubmit = async () => {
@@ -404,13 +419,14 @@ const App: React.FC = () => {
         {/* ================= METAVERSE VIEW ================= */}
         {currentView === 'metaverse' && (
              <div className="h-[calc(100vh-80px)] w-full relative bg-black">
-                 <Scene3D memories={memories} theme={selectedTheme} /> 
+                 <Scene3D memories={memories} theme={selectedTheme} inventory={inventory} /> 
                  <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/50 text-xs text-center pointer-events-none z-10">
                     Use <span className="font-bold text-brand-yellow">ZQSD</span> or <span className="font-bold text-brand-yellow">Arrows</span> to explore.<br/>
                     Click on floating memories to zoom.
                  </div>
                  <div className="absolute top-8 right-8 text-white/30 text-xs text-right pointer-events-none z-10">
-                    Theme: <span className="font-bold text-white">{selectedTheme} Architecture</span>
+                    Theme: <span className="font-bold text-white">{selectedTheme} Architecture</span><br/>
+                    Objects Owned: <span className="font-bold text-brand-pink">{inventory.length}</span>
                  </div>
              </div>
         )}
@@ -543,14 +559,16 @@ const App: React.FC = () => {
                
                <div className="p-4 bg-brand-yellow/10 rounded-xl border border-brand-yellow/20">
                   <p className="text-xs text-slate-500 font-medium mb-1">Your Balance</p>
-                  <p className="text-xl font-bold text-brand-purple">1,240.50 MEME</p>
+                  <p className="text-xl font-bold text-brand-purple">{balance.toFixed(2)} MEME</p>
                </div>
              </div>
 
              {/* Grid */}
              <div className="flex-1 bg-white p-8">
                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {PRODUCTS.filter(p => shopFilter === 'All' || p.category === shopFilter).map(product => (
+                  {PRODUCTS.filter(p => shopFilter === 'All' || p.category === shopFilter).map(product => {
+                    const isOwned = inventory.includes(product.id);
+                    return (
                     <div key={product.id} className="bg-slate-50 rounded-xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-xl hover:shadow-brand-purple/10 transition-all group">
                        <div className="h-48 overflow-hidden relative">
                          <img src={product.image} alt={product.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
@@ -566,12 +584,24 @@ const App: React.FC = () => {
                           <p className="text-xs text-slate-400 mb-1">{product.category}</p>
                           <h4 className="font-serif text-lg font-bold text-slate-800 mb-3">{product.title}</h4>
                           <div className="flex items-center justify-between">
-                             <span className="font-bold text-brand-purple">{product.price} ETH</span>
-                             <button className="px-3 py-1.5 bg-black text-white text-xs font-bold rounded hover:bg-brand-pink hover:text-black transition-colors">Purchase</button>
+                             <span className="font-bold text-brand-purple">{product.price} MEME</span>
+                             <button 
+                               onClick={() => handlePurchase(product)}
+                               disabled={isOwned || balance < product.price}
+                               className={`px-3 py-1.5 text-xs font-bold rounded transition-colors ${
+                                 isOwned 
+                                  ? 'bg-green-100 text-green-700 cursor-default' 
+                                  : balance < product.price 
+                                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                                    : 'bg-black text-white hover:bg-brand-pink hover:text-black'
+                               }`}
+                             >
+                               {isOwned ? 'Owned' : 'Purchase'}
+                             </button>
                           </div>
                        </div>
                     </div>
-                  ))}
+                  )})}
                </div>
              </div>
           </div>
