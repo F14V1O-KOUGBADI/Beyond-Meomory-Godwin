@@ -13,10 +13,16 @@ const PRODUCTS: Product[] = [
   { id: '6', title: 'Golden Frame', category: 'Decorations', price: 0.1, rarity: 'Classic', image: 'https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?auto=format&fit=crop&q=80&w=600' },
 ];
 
+export type OriginTheme = 'European' | 'African' | 'Asian';
+
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'home' | 'library' | 'shop' | 'advisor' | 'tokenomics' | 'metaverse'>('home');
   const [isWalletConnected, setIsWalletConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState('');
+
+  // --- ORIGIN / THEME STATE ---
+  const [showOriginModal, setShowOriginModal] = useState(false);
+  const [selectedTheme, setSelectedTheme] = useState<OriginTheme>('European');
 
   // --- LIBRARY STATE ---
   const [memories, setMemories] = useState<Memory[]>([]);
@@ -42,6 +48,16 @@ const App: React.FC = () => {
       setIsWalletConnected(false);
       setWalletAddress('');
     }
+  };
+
+  const handleStartLegacyClick = () => {
+    setShowOriginModal(true);
+  };
+
+  const handleOriginSelection = (theme: OriginTheme) => {
+    setSelectedTheme(theme);
+    setShowOriginModal(false);
+    setCurrentView('library');
   };
 
   const handleSaveMemory = async () => {
@@ -85,6 +101,69 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-brand-black text-slate-900 font-sans selection:bg-brand-purple selection:text-white">
       
+      {/* --- ORIGIN SELECTION MODAL --- */}
+      {showOriginModal && (
+        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-6">
+          <div className="max-w-4xl w-full bg-brand-surface border border-brand-purple/20 rounded-2xl p-8 md:p-12 relative overflow-hidden">
+            {/* Background decoration */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-brand-purple/10 rounded-full blur-[80px]"></div>
+            
+            <h2 className="text-3xl md:text-4xl font-serif text-white text-center mb-4">Honor Your Roots</h2>
+            <p className="text-slate-400 text-center mb-12 max-w-lg mx-auto">
+              Your heritage shapes your digital sanctuary. Select your origin to customize your Metaverse architecture.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* African Card */}
+              <button 
+                onClick={() => handleOriginSelection('African')}
+                className="group relative h-80 rounded-xl overflow-hidden border border-white/10 hover:border-brand-yellow/50 transition-all hover:scale-105"
+              >
+                <img src="https://images.unsplash.com/photo-1523805009345-7448845a9e53?auto=format&fit=crop&q=80&w=600" alt="African" className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent"></div>
+                <div className="absolute bottom-0 left-0 p-6">
+                  <h3 className="text-2xl font-serif text-brand-yellow mb-1">African</h3>
+                  <p className="text-xs text-slate-300">Warmth, Earth, & Gold</p>
+                </div>
+              </button>
+
+              {/* European Card */}
+              <button 
+                onClick={() => handleOriginSelection('European')}
+                className="group relative h-80 rounded-xl overflow-hidden border border-white/10 hover:border-brand-purple/50 transition-all hover:scale-105"
+              >
+                <img src="https://images.unsplash.com/photo-1548625361-12c62c2cb989?auto=format&fit=crop&q=80&w=600" alt="European" className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent"></div>
+                <div className="absolute bottom-0 left-0 p-6">
+                  <h3 className="text-2xl font-serif text-brand-purple mb-1">European</h3>
+                  <p className="text-xs text-slate-300">Marble, History, & Class</p>
+                </div>
+              </button>
+
+              {/* Asian Card */}
+              <button 
+                onClick={() => handleOriginSelection('Asian')}
+                className="group relative h-80 rounded-xl overflow-hidden border border-white/10 hover:border-brand-pink/50 transition-all hover:scale-105"
+              >
+                <img src="https://images.unsplash.com/photo-1542640244-7e672d6bd4e8?auto=format&fit=crop&q=80&w=600" alt="Asian" className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent"></div>
+                <div className="absolute bottom-0 left-0 p-6">
+                  <h3 className="text-2xl font-serif text-brand-pink mb-1">Asian</h3>
+                  <p className="text-xs text-slate-300">Zen, Nature, & Harmony</p>
+                </div>
+              </button>
+            </div>
+            
+            <button 
+              onClick={() => setShowOriginModal(false)}
+              className="mt-8 mx-auto block text-slate-500 text-sm hover:text-white transition-colors"
+            >
+              Skip for now (Default to European)
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* --- STICKY NAVIGATION --- */}
       <nav className="sticky top-0 z-50 bg-brand-black/90 backdrop-blur-md border-b border-white/10 text-white shadow-2xl">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
@@ -165,7 +244,7 @@ const App: React.FC = () => {
               </p>
               
               <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-                <button onClick={() => setCurrentView('library')} className="px-8 py-4 bg-gradient-to-r from-brand-purple to-brand-pink hover:from-brand-purple/90 hover:to-brand-pink/90 rounded-full text-black font-bold shadow-[0_0_30px_rgba(157,142,255,0.4)] transition-all transform hover:scale-105">
+                <button onClick={handleStartLegacyClick} className="px-8 py-4 bg-gradient-to-r from-brand-purple to-brand-pink hover:from-brand-purple/90 hover:to-brand-pink/90 rounded-full text-black font-bold shadow-[0_0_30px_rgba(157,142,255,0.4)] transition-all transform hover:scale-105">
                   Start Your Legacy
                 </button>
                 <button onClick={() => setCurrentView('metaverse')} className="px-8 py-4 bg-transparent border border-white/20 hover:bg-white/5 rounded-full text-white font-medium backdrop-blur-sm transition-all flex items-center gap-2 group">
@@ -195,9 +274,12 @@ const App: React.FC = () => {
         {/* ================= METAVERSE VIEW ================= */}
         {currentView === 'metaverse' && (
              <div className="h-[calc(100vh-80px)] w-full relative bg-black">
-                 <Scene3D images={[]} /> 
-                 <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/50 text-xs text-center pointer-events-none">
+                 <Scene3D images={[]} theme={selectedTheme} /> 
+                 <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/50 text-xs text-center pointer-events-none z-10">
                     Use <span className="font-bold text-brand-yellow">ZQSD</span> or <span className="font-bold text-brand-yellow">Arrows</span> to explore
+                 </div>
+                 <div className="absolute top-8 right-8 text-white/30 text-xs text-right pointer-events-none z-10">
+                    Theme: <span className="font-bold text-white">{selectedTheme} Architecture</span>
                  </div>
              </div>
         )}
