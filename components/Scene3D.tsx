@@ -114,13 +114,13 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, onRoomChange }) => {
         return {
           bg: '#2E1A0F', // Deep Clay Brown
           fog: '#2E1A0F',
-          floor: '#3E2723', // Dark Earth
-          floorAlt: '#5D4037', // Light Earth
+          floor: '#D4AF37', // Golden Sand
+          floorAlt: '#B8860B', // Dark Goldenrod
           wall: '#4E342E', // Clay Wall
-          columnMain: '#261208', // Ebony Wood
+          columnMain: '#3E2723', // Dark Wood
           columnDetail: '#FFAB00', // Deep Gold/Amber
           lightColor: '#FF6D00', // Intense Sunset Orange
-          lightIntensity: 0.8,
+          lightIntensity: 0.9,
           sunColor: '#FF9100', // Golden Sun
           sunIntensity: 1.5,
           skylight: '#FFAB00' // Gold
@@ -200,7 +200,7 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, onRoomChange }) => {
     mountRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // --- TEXTURES (Simplified for brevity, kept same visuals) ---
+    // --- TEXTURES ---
     const createTexture = (color1: string, color2: string, size = 512, type = 'check') => {
         const canvas = document.createElement('canvas');
         canvas.width = size;
@@ -219,6 +219,11 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, onRoomChange }) => {
                   ctx.fillStyle = color2;
                   ctx.fillRect(Math.random()*size, Math.random()*size, 2, 2);
                }
+            } else if (type === 'sand') { // Special texture for African ground
+               for(let i=0;i<20000;i++) {
+                  ctx.fillStyle = Math.random() > 0.5 ? color2 : '#f5deb3';
+                  ctx.fillRect(Math.random()*size, Math.random()*size, 2, 2);
+               }
             }
         }
         const tex = new THREE.CanvasTexture(canvas);
@@ -227,7 +232,7 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, onRoomChange }) => {
         return tex;
     };
 
-    const floorTex = createTexture(themeConfig.floor, themeConfig.floorAlt, 1024, 'check'); 
+    const floorTex = createTexture(themeConfig.floor, themeConfig.floorAlt, 1024, theme === 'African' ? 'sand' : 'check'); 
     floorTex.repeat.set(24, 24);
     
     const wallTex = createTexture(themeConfig.wall, themeConfig.bg, 512, 'noise');
@@ -252,7 +257,7 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, onRoomChange }) => {
     const faceTex = new THREE.CanvasTexture(faceCanvas);
 
     // --- MATERIALS ---
-    const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.3, metalness: theme === 'European' ? 0.3 : 0.1 });
+    const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, roughness: theme === 'African' ? 1 : 0.3, metalness: theme === 'European' ? 0.3 : 0 });
     const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.9 });
     const glassMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, transmission: 0.9, opacity: 1, metalness: 0, roughness: 0, thickness: 0.5 });
     
@@ -260,7 +265,7 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, onRoomChange }) => {
     const columnMainMat = new THREE.MeshStandardMaterial({ color: themeConfig.columnMain, roughness: 0.5 });
     const columnDetailMat = new THREE.MeshStandardMaterial({ color: themeConfig.columnDetail, roughness: 0.6, metalness: 0.6 }); 
     
-    // Rotunda Materials (Winter/Separate)
+    // Rotunda Materials
     const rotundaFloorMat = new THREE.MeshStandardMaterial({ map: snowFloorTex, roughness: 0.9 });
     const rotundaWallMat = new THREE.MeshStandardMaterial({ map: plankTex, roughness: 0.9 });
     const rotundaColumnMat = new THREE.MeshStandardMaterial({ color: '#3e2723', roughness: 0.8 });
@@ -272,6 +277,44 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, onRoomChange }) => {
     const shirtMat = new THREE.MeshStandardMaterial({ color: '#9D8EFF' }); // Purple shirt (Brand)
     const pantsMat = new THREE.MeshStandardMaterial({ color: '#212121' });
     const shoeMat = new THREE.MeshStandardMaterial({ color: '#000000' });
+
+    // African specific materials
+    const woodMat = new THREE.MeshStandardMaterial({ color: '#3E2723', roughness: 0.9 });
+    const leafMat = new THREE.MeshStandardMaterial({ color: '#558B2F', roughness: 0.8 });
+    const blackboardMat = new THREE.MeshStandardMaterial({ color: '#263238', roughness: 0.8 });
+    const neonMat = new THREE.MeshBasicMaterial({ color: '#00E5FF' });
+    const goldMat = new THREE.MeshStandardMaterial({ color: '#FFD700', metalness: 0.9, roughness: 0.2, emissive: '#FFAB00', emissiveIntensity: 0.2 });
+
+    // Helper to create tree of life at different stages
+    const createStylizedTree = (scale: number, hasLeaves: boolean, type: 'sapling'|'bush'|'tree'|'ancient') => {
+        const grp = new THREE.Group();
+        
+        // Trunk
+        const trunkH = scale * 10;
+        const trunkR = scale;
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(trunkR * 0.7, trunkR, trunkH, 8), woodMat);
+        trunk.position.y = trunkH / 2;
+        grp.add(trunk);
+
+        // Leaves
+        if (hasLeaves) {
+            const foliageCount = type === 'sapling' ? 1 : type === 'bush' ? 5 : type === 'tree' ? 12 : 30;
+            const size = scale * 4;
+            for(let i=0; i<foliageCount; i++) {
+                const foliage = new THREE.Mesh(new THREE.IcosahedronGeometry(size, 0), leafMat);
+                foliage.position.y = trunkH + (Math.random() * size);
+                foliage.position.x = (Math.random() - 0.5) * size * 2;
+                foliage.position.z = (Math.random() - 0.5) * size * 2;
+                
+                // For ancient tree, make leaves golden/glowing
+                if (type === 'ancient') {
+                   foliage.material = goldMat;
+                }
+                grp.add(foliage);
+            }
+        }
+        return grp;
+    };
 
     // ==========================================
     // ROOM 1: MAIN HALL (Themed)
@@ -290,7 +333,6 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, onRoomChange }) => {
       walls.position.y = 30;
       group.add(walls);
 
-      // Dome color matching the deep background for infinity effect
       const dome = new THREE.Mesh(new THREE.SphereGeometry(120, 64, 32, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: themeConfig.bg, side: THREE.BackSide }));
       dome.position.y = 70;
       group.add(dome);
@@ -300,49 +342,171 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, onRoomChange }) => {
       skylight.position.y = 130;
       group.add(skylight);
 
-      for (let i = 0; i < 12; i++) {
-          const angle = (i / 12) * Math.PI * 2;
-          const r = 80;
-          const colGroup = new THREE.Group();
-          colGroup.position.set(Math.cos(angle) * r, -10, Math.sin(angle) * r);
-          colGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(4, 5, 2, 32), columnDetailMat).translateY(1));
-          colGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 60, 32), columnMainMat).translateY(32));
-          colGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.2, 10, 32), columnDetailMat).translateY(15));
-          colGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(5, 3.5, 3, 32), columnDetailMat).translateY(62));
-          group.add(colGroup);
+      // --- AFRICAN THEME: 8 STAGES OF LIFE ---
+      if (theme === 'African') {
+          const stages = [
+             { name: 'Birth', type: 'root' },
+             { name: 'Early Childhood', type: 'toys' },
+             { name: 'Childhood', type: 'school' },
+             { name: 'Adolescence', type: 'urban' },
+             { name: 'Young Adult', type: 'build' },
+             { name: 'Mature', type: 'heritage' },
+             { name: 'Wisdom', type: 'ancient' },
+             { name: 'Memory', type: 'trace' },
+          ];
+
+          stages.forEach((stage, i) => {
+              const angle = (i / 8) * Math.PI * 2;
+              const r = 85;
+              const x = Math.cos(angle) * r;
+              const z = Math.sin(angle) * r;
+              
+              const stageGroup = new THREE.Group();
+              stageGroup.position.set(x, -10, z);
+              stageGroup.rotation.y = -angle; // Face inward
+
+              // Base for the stage
+              const platform = new THREE.Mesh(new THREE.CylinderGeometry(15, 18, 2, 32), floorMat);
+              platform.position.y = 1;
+              stageGroup.add(platform);
+
+              // 1. BIRTH: The Root / Sapling
+              if (stage.type === 'root') {
+                  const sapling = createStylizedTree(0.5, true, 'sapling');
+                  stageGroup.add(sapling);
+                  const light = new THREE.PointLight(0xFFD700, 2, 20);
+                  light.position.y = 10;
+                  stageGroup.add(light);
+              }
+
+              // 2. EARLY CHILDHOOD: Floating Toys
+              if (stage.type === 'toys') {
+                  for(let j=0; j<5; j++) {
+                      const geo = j%2===0 ? new THREE.BoxGeometry(2,2,2) : new THREE.SphereGeometry(1.5);
+                      const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(j*0.2, 1, 0.5) });
+                      const toy = new THREE.Mesh(geo, mat);
+                      toy.position.set((Math.random()-0.5)*10, 5 + Math.random()*10, (Math.random()-0.5)*10);
+                      stageGroup.add(toy);
+                  }
+              }
+
+              // 3. CHILDHOOD: School / Blackboard
+              if (stage.type === 'school') {
+                  const board = new THREE.Mesh(new THREE.BoxGeometry(16, 10, 0.5), blackboardMat);
+                  board.position.y = 8;
+                  stageGroup.add(board);
+                  // Chalk lines
+                  const chalk = new THREE.Mesh(new THREE.BoxGeometry(14, 0.2, 0.6), new THREE.MeshBasicMaterial({color:'white'}));
+                  chalk.position.y = 4;
+                  chalk.position.z = 0.5;
+                  stageGroup.add(chalk);
+              }
+
+              // 4. ADOLESCENCE: Urban / Choice
+              if (stage.type === 'urban') {
+                  const wall = new THREE.Mesh(new THREE.BoxGeometry(12, 15, 1), new THREE.MeshStandardMaterial({color:'#424242'}));
+                  wall.position.y = 7.5;
+                  stageGroup.add(wall);
+                  // Neon strip
+                  const strip = new THREE.Mesh(new THREE.BoxGeometry(13, 0.5, 1.2), neonMat);
+                  strip.position.y = 10;
+                  strip.rotation.z = 0.2;
+                  stageGroup.add(strip);
+              }
+
+              // 5. YOUNG ADULT: Construction / Work
+              if (stage.type === 'build') {
+                  for(let b=0; b<6; b++) {
+                      const block = new THREE.Mesh(new THREE.BoxGeometry(4,4,4), new THREE.MeshStandardMaterial({color: b%2===0?'#795548':'#5D4037'}));
+                      block.position.set((Math.random()-0.5)*10, 2 + b*4, (Math.random()-0.5)*5);
+                      stageGroup.add(block);
+                  }
+              }
+
+              // 6. MATURE: Heritage Tree
+              if (stage.type === 'heritage') {
+                  const tree = createStylizedTree(1.5, true, 'tree');
+                  stageGroup.add(tree);
+                  // Floating frames logic is handled by main memory loop, but we add a base here
+                  const ring = new THREE.Mesh(new THREE.TorusGeometry(8, 0.5, 8, 32), goldMat);
+                  ring.rotation.x = Math.PI/2;
+                  ring.position.y = 2;
+                  stageGroup.add(ring);
+              }
+
+              // 7. WISDOM: Ancient Tree / Sunset
+              if (stage.type === 'ancient') {
+                  const tree = createStylizedTree(2.5, true, 'ancient');
+                  stageGroup.add(tree);
+                  const orb = new THREE.Mesh(new THREE.SphereGeometry(2), new THREE.MeshBasicMaterial({color: '#FF6D00'}));
+                  orb.position.y = 15;
+                  stageGroup.add(orb);
+                  const glow = new THREE.PointLight('#FF6D00', 3, 40);
+                  glow.position.y = 15;
+                  stageGroup.add(glow);
+              }
+
+              // 8. MEMORY: The Trace / Particles
+              if (stage.type === 'trace') {
+                  const particles = new THREE.Group();
+                  for(let p=0; p<20; p++) {
+                      const dot = new THREE.Mesh(new THREE.SphereGeometry(0.3), goldMat);
+                      dot.position.set((Math.random()-0.5)*10, Math.random()*20, (Math.random()-0.5)*10);
+                      particles.add(dot);
+                  }
+                  stageGroup.add(particles);
+                  // Animation for particles is simulated by static placement here for simplicity, 
+                  // or could be added to loop if referenced.
+              }
+
+              group.add(stageGroup);
+          });
+      } else {
+          // --- STANDARD COLUMNS (European / Asian) ---
+          for (let i = 0; i < 12; i++) {
+              const angle = (i / 12) * Math.PI * 2;
+              const r = 80;
+              const colGroup = new THREE.Group();
+              colGroup.position.set(Math.cos(angle) * r, -10, Math.sin(angle) * r);
+              colGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(4, 5, 2, 32), columnDetailMat).translateY(1));
+              colGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 60, 32), columnMainMat).translateY(32));
+              colGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.2, 10, 32), columnDetailMat).translateY(15));
+              colGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(5, 3.5, 3, 32), columnDetailMat).translateY(62));
+              group.add(colGroup);
+          }
       }
       
-      // Standard Display Cases
-      [0, Math.PI/2, Math.PI, Math.PI*1.5].forEach((angle, i) => {
-         const r = 35;
-         const cGroup = new THREE.Group();
-         cGroup.position.set(Math.cos(angle)*r, -10, Math.sin(angle)*r);
-         cGroup.rotation.y = -angle + Math.PI/2;
-         
-         const baseColor = theme === 'African' ? '#3E2723' : theme === 'Asian' ? '#1A1A1A' : '#ECEFF1';
-         cGroup.add(new THREE.Mesh(new THREE.BoxGeometry(10, 4, 10), new THREE.MeshStandardMaterial({color: baseColor})).translateY(2));
-         
-         if (theme === 'Asian') {
-             // Asian style divider
-             cGroup.add(new THREE.Mesh(new THREE.BoxGeometry(10, 15, 0.5), new THREE.MeshStandardMaterial({color:'#d7ccc8', transparent:true, opacity:0.8})).translateY(11.5)); // Paper screen
-             const frame = new THREE.Mesh(new THREE.BoxGeometry(10.5, 15.5, 1), new THREE.MeshStandardMaterial({color:'#3e2723'})).translateY(11.5);
-             cGroup.add(frame);
-         } else {
-             // Glass case
-             cGroup.add(new THREE.Mesh(new THREE.BoxGeometry(10, 15, 10), glassMat).translateY(11.5));
-         }
+      // Standard Display Cases (Only if NOT African, or reduced for African)
+      if (theme !== 'African') {
+        [0, Math.PI/2, Math.PI, Math.PI*1.5].forEach((angle, i) => {
+           const r = 35;
+           const cGroup = new THREE.Group();
+           cGroup.position.set(Math.cos(angle)*r, -10, Math.sin(angle)*r);
+           cGroup.rotation.y = -angle + Math.PI/2;
+           
+           const baseColor = theme === 'Asian' ? '#1A1A1A' : '#ECEFF1';
+           cGroup.add(new THREE.Mesh(new THREE.BoxGeometry(10, 4, 10), new THREE.MeshStandardMaterial({color: baseColor})).translateY(2));
+           
+           if (theme === 'Asian') {
+               cGroup.add(new THREE.Mesh(new THREE.BoxGeometry(10, 15, 0.5), new THREE.MeshStandardMaterial({color:'#d7ccc8', transparent:true, opacity:0.8})).translateY(11.5)); 
+               const frame = new THREE.Mesh(new THREE.BoxGeometry(10.5, 15.5, 1), new THREE.MeshStandardMaterial({color:'#3e2723'})).translateY(11.5);
+               cGroup.add(frame);
+           } else {
+               cGroup.add(new THREE.Mesh(new THREE.BoxGeometry(10, 15, 10), glassMat).translateY(11.5));
+           }
 
-         cGroup.add(new THREE.Mesh(new THREE.BoxGeometry(10.2, 0.5, 10.2), new THREE.MeshStandardMaterial({color: themeConfig.columnDetail})).translateY(19));
-         
-         const art = new THREE.Mesh(new THREE.SphereGeometry(2), new THREE.MeshStandardMaterial({ color: theme === 'European' ? '#ECEFF1' : '#FFA5B7', metalness: 0.8, roughness: 0.2 })); 
-         art.position.y = 7;
-         cGroup.add(art);
-         
-         const light = new THREE.PointLight(themeConfig.columnDetail, 1.5, 15); 
-         light.position.y = 10;
-         cGroup.add(light);
-         group.add(cGroup);
-      });
+           cGroup.add(new THREE.Mesh(new THREE.BoxGeometry(10.2, 0.5, 10.2), new THREE.MeshStandardMaterial({color: themeConfig.columnDetail})).translateY(19));
+           
+           const art = new THREE.Mesh(new THREE.SphereGeometry(2), new THREE.MeshStandardMaterial({ color: '#ECEFF1', metalness: 0.8, roughness: 0.2 })); 
+           art.position.y = 7;
+           cGroup.add(art);
+           
+           const light = new THREE.PointLight(themeConfig.columnDetail, 1.5, 15); 
+           light.position.y = 10;
+           cGroup.add(light);
+           group.add(cGroup);
+        });
+      }
 
       scene.add(group);
     };
