@@ -24,8 +24,12 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, onRoomChange }) => {
 
   // Interaction state
   const isDragging = useRef(false);
+  const startDragTime = useRef(0);
   const previousMousePosition = useRef({ x: 0, y: 0 });
   const cameraAngle = useRef({ theta: Math.PI / 2, phi: Math.PI / 2.5 });
+  
+  // Zoom State
+  const [zoomedMemory, setZoomedMemory] = useState<Memory | null>(null);
 
   // Audio State
   const [isPlaying, setIsPlaying] = useState(false);
@@ -713,6 +717,9 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, onRoomChange }) => {
             mesh.position.set(x, 5, z);
             mesh.lookAt(0, 5, 0);
             
+            // Attach memory to user data for click detection
+            mesh.userData = { memory: memory };
+
             group.add(mesh);
             artifactsRef.current.push(mesh);
         });
@@ -723,6 +730,7 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, onRoomChange }) => {
   // --- Interaction Handlers ---
   const handleMouseDown = (e: React.MouseEvent) => {
     isDragging.current = true;
+    startDragTime.current = Date.now();
     previousMousePosition.current = { x: e.clientX, y: e.clientY };
   };
 
@@ -736,7 +744,35 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, onRoomChange }) => {
     previousMousePosition.current = { x: e.clientX, y: e.clientY };
   };
 
-  const handleMouseUp = () => { isDragging.current = false; };
+  const handleMouseUp = (e: React.MouseEvent) => {
+    isDragging.current = false;
+    // Check if it was a click (short duration, small movement handled by logic or simple timeout)
+    const duration = Date.now() - startDragTime.current;
+    if (duration < 200) {
+       handleClickRaycast(e);
+    }
+  };
+
+  const handleClickRaycast = (e: React.MouseEvent) => {
+     if (!mountRef.current || !cameraRef.current) return;
+     
+     const raycaster = new THREE.Raycaster();
+     const mouse = new THREE.Vector2();
+     const rect = mountRef.current.getBoundingClientRect();
+     
+     mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+     mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+     
+     raycaster.setFromCamera(mouse, cameraRef.current);
+     const intersects = raycaster.intersectObjects(artifactsRef.current);
+     
+     if (intersects.length > 0) {
+        const object = intersects[0].object;
+        if (object.userData && object.userData.memory) {
+           setZoomedMemory(object.userData.memory);
+        }
+     }
+  };
 
   return (
     <div 
@@ -745,18 +781,49 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, onRoomChange }) => {
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
+      onMouseLeave={() => { isDragging.current = false; }}
     >
+        {/* ZOOM MODAL */}
+        {zoomedMemory && (
+            <div 
+                className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-8 animate-fade-in"
+                onClick={() => setZoomedMemory(null)}
+            >
+                <div className="max-w-4xl w-full bg-white rounded-2xl overflow-hidden shadow-2xl flex flex-col md:flex-row relative" onClick={(e) => e.stopPropagation()}>
+                    <button 
+                        onClick={() => setZoomedMemory(null)} 
+                        className="absolute top-4 right-4 text-black bg-white/50 rounded-full w-8 h-8 flex items-center justify-center font-bold hover:bg-white z-10"
+                    >
+                        ✕
+                    </button>
+                    <div className="md:w-1/2 bg-black flex items-center justify-center">
+                        <img src={zoomedMemory.image} alt="Zoomed" className="max-h-[60vh] md:max-h-[80vh] w-auto object-contain" />
+                    </div>
+                    <div className="md:w-1/2 p-8 flex flex-col justify-center bg-white text-slate-800">
+                        <div className="mb-4">
+                            <span className="text-xs font-bold uppercase tracking-wider text-brand-purple mb-1 block">Memory from</span>
+                            <span className="text-sm font-serif text-slate-500">{zoomedMemory.date}</span>
+                            {zoomedMemory.ageAtMoment && <span className="block text-xs font-bold text-slate-400 mt-1">Age: {zoomedMemory.ageAtMoment}</span>}
+                        </div>
+                        <p className="font-serif text-2xl md:text-3xl leading-relaxed mb-6">"{zoomedMemory.content}"</p>
+                        <div className="flex gap-2 flex-wrap">
+                            {zoomedMemory.emotions.map(e => <span key={e} className="px-3 py-1 bg-brand-pink/20 text-brand-purple rounded-full text-xs font-bold">{e}</span>)}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
+
         {/* Navigation UI */}
         <div className="absolute top-4 left-4 z-10 flex flex-col space-y-2">
             <button 
-              onClick={() => teleport('library')}
+              onClick={(e) => { e.stopPropagation(); teleport('library'); }}
               className="bg-black/60 text-white px-4 py-2 rounded-lg border border-white/20 hover:bg-white/10 transition shadow-lg backdrop-blur flex items-center gap-2"
             >
               <span>☀️</span> Main Hall
             </button>
             <button 
-              onClick={() => teleport('rotunda')}
+              onClick={(e) => { e.stopPropagation(); teleport('rotunda'); }}
               className="bg-black/60 text-white px-4 py-2 rounded-lg border border-white/20 hover:bg-white/10 transition shadow-lg backdrop-blur flex items-center gap-2"
             >
                <span>❄️</span> Winter Cabin

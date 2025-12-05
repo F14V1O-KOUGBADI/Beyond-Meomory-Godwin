@@ -32,6 +32,8 @@ const App: React.FC = () => {
   // --- LIBRARY STATE ---
   const [memories, setMemories] = useState<Memory[]>([]);
   const [memoryInput, setMemoryInput] = useState('');
+  const [libraryImage, setLibraryImage] = useState<string | null>(null);
+  const [libraryAge, setLibraryAge] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   // --- ADVISOR STATE ---
@@ -74,6 +76,15 @@ const App: React.FC = () => {
     }
   };
 
+  // Handle Image Upload for Library
+  const handleLibraryImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const imageUrl = URL.createObjectURL(file);
+      setLibraryImage(imageUrl);
+    }
+  };
+
   const handleFinishOnboarding = async () => {
     if (!uploadDesc.trim()) return;
     
@@ -112,11 +123,15 @@ const App: React.FC = () => {
       content: memoryInput,
       date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
       emotions,
-      themes
+      themes,
+      image: libraryImage || undefined,
+      ageAtMoment: libraryAge
     };
 
     setMemories([newMemory, ...memories]);
     setMemoryInput('');
+    setLibraryImage(null);
+    setLibraryAge('');
     setIsAnalyzing(false);
   };
 
@@ -391,7 +406,8 @@ const App: React.FC = () => {
              <div className="h-[calc(100vh-80px)] w-full relative bg-black">
                  <Scene3D memories={memories} theme={selectedTheme} /> 
                  <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/50 text-xs text-center pointer-events-none z-10">
-                    Use <span className="font-bold text-brand-yellow">ZQSD</span> or <span className="font-bold text-brand-yellow">Arrows</span> to explore
+                    Use <span className="font-bold text-brand-yellow">ZQSD</span> or <span className="font-bold text-brand-yellow">Arrows</span> to explore.<br/>
+                    Click on floating memories to zoom.
                  </div>
                  <div className="absolute top-8 right-8 text-white/30 text-xs text-right pointer-events-none z-10">
                     Theme: <span className="font-bold text-white">{selectedTheme} Architecture</span>
@@ -411,11 +427,35 @@ const App: React.FC = () => {
                   <h3 className="text-sm font-bold text-brand-purple uppercase tracking-widest mb-4">New Entry</h3>
                   <p className="text-slate-500 mb-6 text-sm">Describe a moment you wish to freeze in time. Our AI will analyze its emotional core.</p>
                   
+                  {/* Library Image Upload */}
+                  <div className="mb-4">
+                     <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Photo (Optional)</label>
+                     <div className="relative w-full h-32 border-2 border-dashed border-slate-300 rounded-lg overflow-hidden bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors cursor-pointer">
+                        {libraryImage ? (
+                          <img src={libraryImage} alt="Preview" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-slate-400 text-xs">Click to upload image</span>
+                        )}
+                        <input type="file" accept="image/*" onChange={handleLibraryImageUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                     </div>
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Age at moment (Optional)</label>
+                    <input 
+                      type="text" 
+                      value={libraryAge}
+                      onChange={(e) => setLibraryAge(e.target.value)}
+                      placeholder="e.g. 21"
+                      className="w-full p-2 bg-white border border-slate-200 rounded-lg text-sm"
+                    />
+                  </div>
+
                   <textarea 
                     value={memoryInput}
                     onChange={(e) => setMemoryInput(e.target.value)}
                     placeholder="It was a rainy Tuesday in November..."
-                    className="w-full h-48 p-4 bg-white rounded-xl border-2 border-slate-200 focus:border-brand-purple focus:ring-0 transition-colors resize-none font-serif text-lg leading-relaxed text-slate-700 placeholder:text-slate-300 mb-6"
+                    className="w-full h-32 p-4 bg-white rounded-xl border-2 border-slate-200 focus:border-brand-purple focus:ring-0 transition-colors resize-none font-serif text-lg leading-relaxed text-slate-700 placeholder:text-slate-300 mb-6"
                   />
                   
                   <button 
@@ -429,7 +469,7 @@ const App: React.FC = () => {
                         Analyzing Essence...
                       </>
                     ) : (
-                      "Encrypt & Save to Chain"
+                      "Encrypt & Add to Vault"
                     )}
                   </button>
                 </div>
