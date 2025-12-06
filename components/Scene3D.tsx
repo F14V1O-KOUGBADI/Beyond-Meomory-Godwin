@@ -6,42 +6,30 @@ interface Scene3DProps {
   memories: Memory[];
   theme: 'European' | 'African' | 'Asian';
   inventory: string[];
+  equippedItemId: string | null;
   onRoomChange?: (room: 'library' | 'rotunda') => void;
 }
 
-const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, onRoomChange }) => {
+const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedItemId, onRoomChange }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const reqRef = useRef<number>(0);
-  const galleryGroupRef = useRef<THREE.Group | null>(null);
   const artifactsRef = useRef<THREE.Mesh[]>([]);
   
-  // Character Refs
-  const characterRef = useRef<THREE.Group | null>(null);
-  const characterSpeed = 1.5; 
-  const keysPressed = useRef<{ [key: string]: boolean }>({});
-
   // Interaction state
-  const isDragging = useRef(false);
-  const startDragTime = useRef(0);
-  const previousMousePosition = useRef({ x: 0, y: 0 });
   const cameraAngle = useRef({ theta: Math.PI / 2, phi: Math.PI / 2.5 });
   
-  // Zoom State
-  const [zoomedMemory, setZoomedMemory] = useState<Memory | null>(null);
-
   // Audio State
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Locations
   const LIBRARY_POS = { x: 0, z: 0 };
-  const ROTUNDA_POS = { x: 0, z: -350 };
 
   useEffect(() => {
-    // Audio Init - Classical Piano (Erik Satie - Gymnopedie No 1)
+    // Audio Init - Classical Piano
     const url = "https://cdn.pixabay.com/audio/2022/05/27/audio_1808fbf07a.mp3";
     const audio = new Audio(url);
     audio.loop = true;
@@ -57,10 +45,8 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, onRoomCha
       }
     };
 
-    // Attempt autoplay
     tryPlay();
 
-    // Interaction Fallback
     const handleInteraction = () => {
       tryPlay();
       document.removeEventListener('click', handleInteraction);
@@ -78,121 +64,50 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, onRoomCha
     };
   }, []);
 
-  const toggleMusic = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.pause();
-      } else {
-        audioRef.current.play().catch(e => console.error("Audio play failed", e));
-      }
-      setIsPlaying(!isPlaying);
-    }
-  };
-
-  const teleport = (room: 'library' | 'rotunda') => {
-    if (!characterRef.current) return;
-    
-    if (room === 'library') {
-      characterRef.current.position.set(LIBRARY_POS.x, -10, LIBRARY_POS.z + 60);
-      cameraAngle.current.theta = Math.PI / 2; // Reset angle
-      if (onRoomChange) onRoomChange('library');
-    } else {
-      characterRef.current.position.set(ROTUNDA_POS.x, -10, ROTUNDA_POS.z + 60);
-      cameraAngle.current.theta = Math.PI / 2;
-      if (onRoomChange) onRoomChange('rotunda');
-    }
-  };
-
-  const setInput = (key: string, value: boolean) => {
-    keysPressed.current[key] = value;
-  };
-
   // --- Theme Colors Configuration ---
   const getThemeColors = () => {
-    // Override if "Nebula Skybox" (ID: 5) is purchased
     const hasNebula = inventory.includes('5');
+    
+    if (equippedItemId === '1') { // Marble Mausoleum
+       return { bg: '#000000', fog: '#000000', floor: '#1a1a1a', floorAlt: '#000000', wall: '#1a1a1a', columnMain: '#424242', columnDetail: '#212121', lightColor: '#4fc3f7', lightIntensity: 0.3, sunColor: '#0288d1', sunIntensity: 0.5, skylight: '#000000' };
+    }
+    if (equippedItemId === '4') { // Ancestral Statue
+       return { bg: '#E0F7FA', fog: '#E0F7FA', floor: '#E0F7FA', floorAlt: '#E0F7FA', wall: '#ffffff', columnMain: '#ffffff', columnDetail: '#ffffff', lightColor: '#ffffff', lightIntensity: 1, sunColor: '#FFD700', sunIntensity: 2, skylight: '#ffffff' };
+    }
+
     if (hasNebula) {
         return {
-          bg: '#1A0033', // Deep Purple Space
-          fog: '#1A0033',
-          floor: '#2a2a2a', // Dark Floor
-          floorAlt: '#1a1a1a', 
-          wall: '#000000', 
-          columnMain: '#4A148C', 
-          columnDetail: '#00E5FF', 
-          lightColor: '#D1C4E9', 
-          lightIntensity: 0.8,
-          sunColor: '#E040FB', 
-          sunIntensity: 1.0,
-          skylight: '#7C4DFF' 
+          bg: '#1A0033', fog: '#1A0033', floor: '#2a2a2a', floorAlt: '#1a1a1a', wall: '#000000', columnMain: '#4A148C', columnDetail: '#00E5FF', lightColor: '#D1C4E9', lightIntensity: 0.8, sunColor: '#E040FB', sunIntensity: 1.0, skylight: '#7C4DFF' 
         };
     }
 
     switch (theme) {
       case 'African':
         return {
-          bg: '#2E1A0F', 
-          fog: '#2E1A0F',
-          floor: '#D4AF37', 
-          floorAlt: '#B8860B', 
-          wall: '#4E342E', 
-          columnMain: '#3E2723', 
-          columnDetail: '#FFAB00', 
-          lightColor: '#FF6D00', 
-          lightIntensity: 0.9,
-          sunColor: '#FF9100', 
-          sunIntensity: 1.5,
-          skylight: '#FFAB00' 
+          bg: '#2E1A0F', fog: '#2E1A0F', floor: '#D4AF37', floorAlt: '#B8860B', wall: '#4E342E', columnMain: '#3E2723', columnDetail: '#FFAB00', lightColor: '#FF6D00', lightIntensity: 0.9, sunColor: '#FF9100', sunIntensity: 1.5, skylight: '#FFAB00' 
         };
       case 'Asian':
         return {
-          bg: '#000806', 
-          fog: '#000806',
-          floor: '#2e7d32', 
-          floorAlt: '#1b5e20', 
-          wall: '#212121', 
-          columnMain: '#B71C1C', 
-          columnDetail: '#FFD700', 
-          lightColor: '#FFCDD2', 
-          lightIntensity: 0.7,
-          sunColor: '#FFEB3B', 
-          sunIntensity: 1.1,
-          skylight: '#81C784'
+          bg: '#000806', fog: '#000806', floor: '#2e7d32', floorAlt: '#1b5e20', wall: '#212121', columnMain: '#B71C1C', columnDetail: '#FFD700', lightColor: '#FFCDD2', lightIntensity: 0.7, sunColor: '#FFEB3B', sunIntensity: 1.1, skylight: '#81C784'
         };
       case 'European':
       default:
         return {
-          bg: '#050A15', 
-          fog: '#050A15',
-          floor: '#ECEFF1', 
-          floorAlt: '#CFD8DC', 
-          wall: '#263238', 
-          columnMain: '#FAFAFA', 
-          columnDetail: '#1A237E', 
-          lightColor: '#E3F2FD', 
-          lightIntensity: 0.5,
-          sunColor: '#FFFFFF', 
-          sunIntensity: 1.2,
-          skylight: '#90CAF9'
+          bg: '#050A15', fog: '#050A15', floor: '#ECEFF1', floorAlt: '#CFD8DC', wall: '#263238', columnMain: '#FAFAFA', columnDetail: '#1A237E', lightColor: '#E3F2FD', lightIntensity: 0.5, sunColor: '#FFFFFF', sunIntensity: 1.2, skylight: '#90CAF9'
         };
     }
   };
 
-  // --- Emotion Color Mapping ---
   const getEmotionColor = (emotions: string[]): number => {
     if (!emotions || emotions.length === 0) return 0xFFFFFF;
     const e = emotions[0].toLowerCase();
-    
-    // Bright neon colors for hologram feel
-    if (e.includes('joy') || e.includes('happy') || e.includes('excite')) return 0xFFD700; // Gold
-    if (e.includes('sad') || e.includes('grief') || e.includes('regret')) return 0x2962FF; // Deep Blue
-    if (e.includes('love') || e.includes('romance') || e.includes('passion')) return 0xFF1744; // Red/Pink
-    if (e.includes('nostalg') || e.includes('memory')) return 0xFF6D00; // Orange/Sepia
-    if (e.includes('peace') || e.includes('calm') || e.includes('serene')) return 0x00E676; // Bright Green
-    if (e.includes('fear') || e.includes('anxiety')) return 0x6200EA; // Deep Purple
-    
-    return 0x00B0FF; // Default Tech Blue
+    if (e.includes('joy') || e.includes('happy')) return 0xFFD700; 
+    if (e.includes('sad') || e.includes('grief')) return 0x2962FF; 
+    if (e.includes('love')) return 0xFF1744; 
+    if (e.includes('nostalg')) return 0xFF6D00; 
+    if (e.includes('peace')) return 0x00E676; 
+    if (e.includes('fear')) return 0x6200EA; 
+    return 0x00B0FF; 
   };
 
   useEffect(() => {
@@ -216,152 +131,106 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, onRoomCha
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     mountRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // --- TEXTURES ---
+    // --- MATERIALS ---
     const createTexture = (color1: string, color2: string, size = 512, type = 'check') => {
         const canvas = document.createElement('canvas');
-        canvas.width = size;
-        canvas.height = size;
+        canvas.width = size; canvas.height = size;
         const ctx = canvas.getContext('2d');
         if (ctx) {
-            ctx.fillStyle = color1;
-            ctx.fillRect(0, 0, size, size);
+            ctx.fillStyle = color1; ctx.fillRect(0, 0, size, size);
             if (type === 'check') {
                const s = size/8;
                for(let y=0;y<size;y+=s) for(let x=0;x<size;x+=s) {
                  if((x/s + y/s)%2===0) { ctx.fillStyle=color2; ctx.fillRect(x,y,s,s); }
+               }
+            } else if (type === 'sand') { 
+               for(let i=0;i<20000;i++) {
+                  ctx.fillStyle = Math.random() > 0.5 ? color2 : '#f5deb3';
+                  ctx.fillRect(Math.random()*size, Math.random()*size, 2, 2);
                }
             } else if (type === 'noise') {
                for(let i=0;i<5000;i++) {
                   ctx.fillStyle = color2;
                   ctx.fillRect(Math.random()*size, Math.random()*size, 2, 2);
                }
-            } else if (type === 'sand') { // Special texture for African ground
-               for(let i=0;i<20000;i++) {
-                  ctx.fillStyle = Math.random() > 0.5 ? color2 : '#f5deb3';
-                  ctx.fillRect(Math.random()*size, Math.random()*size, 2, 2);
-               }
             }
         }
         const tex = new THREE.CanvasTexture(canvas);
-        tex.wrapS = THREE.RepeatWrapping;
-        tex.wrapT = THREE.RepeatWrapping;
+        tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
         return tex;
     };
 
     const floorTex = createTexture(themeConfig.floor, themeConfig.floorAlt, 1024, theme === 'African' ? 'sand' : 'check'); 
     floorTex.repeat.set(24, 24);
-    
     const wallTex = createTexture(themeConfig.wall, themeConfig.bg, 512, 'noise');
-    wallTex.repeat.set(36, 12);
     
-    const plankTex = createTexture('#2d1e15', '#1a0f05', 512, 'check');
-    plankTex.repeat.set(16, 8);
-    
-    const snowFloorTex = createTexture('#e0e0e0', '#bdbdbd', 512, 'noise');
-    snowFloorTex.repeat.set(32, 32);
-
-    const faceCanvas = document.createElement('canvas');
-    faceCanvas.width = 128; faceCanvas.height = 128;
-    const fctx = faceCanvas.getContext('2d');
-    if (fctx) {
-       fctx.fillStyle = '#ffccbc'; fctx.fillRect(0,0,128,128);
-       fctx.fillStyle = '#333';
-       fctx.fillRect(35, 50, 15, 15);
-       fctx.fillRect(80, 50, 15, 15);
-       fctx.beginPath(); fctx.arc(64, 85, 20, 0, Math.PI); fctx.stroke();
-    }
-    const faceTex = new THREE.CanvasTexture(faceCanvas);
-
-    // --- MATERIALS ---
-    const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, roughness: theme === 'African' ? 1 : 0.3, metalness: theme === 'European' ? 0.3 : 0 });
+    const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, roughness: theme === 'African' ? 1 : 0.3 });
     const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.9 });
-    const glassMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, transmission: 0.9, opacity: 1, metalness: 0, roughness: 0, thickness: 0.5 });
-    
-    // Theme-based Column Materials
     const columnMainMat = new THREE.MeshStandardMaterial({ color: themeConfig.columnMain, roughness: 0.5 });
-    const columnDetailMat = new THREE.MeshStandardMaterial({ color: themeConfig.columnDetail, roughness: 0.6, metalness: 0.6 }); 
-    
-    // Rotunda Materials
-    const rotundaFloorMat = new THREE.MeshStandardMaterial({ map: snowFloorTex, roughness: 0.9 });
-    const rotundaWallMat = new THREE.MeshStandardMaterial({ map: plankTex, roughness: 0.9 });
-    const rotundaColumnMat = new THREE.MeshStandardMaterial({ color: '#3e2723', roughness: 0.8 });
-    const rotundaDomeMat = new THREE.MeshStandardMaterial({ color: '#1a0f05', side: THREE.BackSide });
-    const snowParticleMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.8 });
-    
-    // Character Materials
-    const skinMat = new THREE.MeshStandardMaterial({ map: faceTex });
-    const shirtMat = new THREE.MeshStandardMaterial({ color: '#9D8EFF' }); // Purple shirt (Brand)
-    const pantsMat = new THREE.MeshStandardMaterial({ color: '#212121' });
-    const shoeMat = new THREE.MeshStandardMaterial({ color: '#000000' });
-
-    // African specific materials
-    const woodMat = new THREE.MeshStandardMaterial({ color: '#3E2723', roughness: 0.9 });
+    const bambooMat = new THREE.MeshStandardMaterial({ color: '#689F38', roughness: 0.6 });
+    const lacquerMat = new THREE.MeshStandardMaterial({ color: '#B71C1C', roughness: 0.2 });
+    const goldMat = new THREE.MeshStandardMaterial({ color: '#FFD700', metalness: 0.9, roughness: 0.2 });
     const leafMat = new THREE.MeshStandardMaterial({ color: '#558B2F', roughness: 0.8 });
     const blackboardMat = new THREE.MeshStandardMaterial({ color: '#263238', roughness: 0.8 });
     const neonMat = new THREE.MeshBasicMaterial({ color: '#00E5FF' });
-    const goldMat = new THREE.MeshStandardMaterial({ color: '#FFD700', metalness: 0.9, roughness: 0.2, emissive: '#FFAB00', emissiveIntensity: 0.2 });
 
-    // European specific materials
-    const grassMat = new THREE.MeshStandardMaterial({ color: '#4CAF50', roughness: 1 });
-    const flowerMat = new THREE.MeshStandardMaterial({ color: '#E91E63', roughness: 0.5 });
-    const autumnLeafMat = new THREE.MeshStandardMaterial({ color: '#FF6F00', roughness: 0.8 });
-    const brickMat = new THREE.MeshStandardMaterial({ color: '#8D6E63', roughness: 0.9 });
-    const cityGlassMat = new THREE.MeshStandardMaterial({ color: '#90CAF9', metalness: 0.9, roughness: 0.1 });
-    const starMat = new THREE.MeshBasicMaterial({ color: '#FFFFFF' });
-
-    // Asian specific materials
-    const bambooMat = new THREE.MeshStandardMaterial({ color: '#689F38', roughness: 0.6 });
-    const lacquerMat = new THREE.MeshStandardMaterial({ color: '#B71C1C', roughness: 0.2, metalness: 0.3 }); // Red lacquer
-    const paperMat = new THREE.MeshStandardMaterial({ color: '#FFEBEE', roughness: 1, emissive: '#FFCDD2', emissiveIntensity: 0.3 }); // Lantern paper
-    const jadeMat = new THREE.MeshPhysicalMaterial({ color: '#43A047', transmission: 0.4, opacity: 0.9, roughness: 0.1, metalness: 0 });
-    const waterMat = new THREE.MeshStandardMaterial({ color: '#0277BD', roughness: 0.1, metalness: 0.8, transparent: true, opacity: 0.8 });
-    const inkMat = new THREE.MeshBasicMaterial({ color: '#000000' });
-
-
-    // Helper to create tree of life at different stages
-    const createStylizedTree = (scale: number, hasLeaves: boolean, type: 'sapling'|'bush'|'tree'|'ancient'|'autumn'|'cherry') => {
+    const createStylizedTree = (scale: number, hasLeaves: boolean, type: 'sapling'|'bush'|'tree'|'ancient') => {
         const grp = new THREE.Group();
-        
-        // Trunk
         const trunkH = scale * 10;
         const trunkR = scale;
-        const trunkColor = type === 'cherry' ? '#5D4037' : '#3E2723';
-        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(trunkR * 0.7, trunkR, trunkH, 8), new THREE.MeshStandardMaterial({color: trunkColor}));
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(trunkR * 0.7, trunkR, trunkH, 8), new THREE.MeshStandardMaterial({color: '#3E2723'}));
         trunk.position.y = trunkH / 2;
         grp.add(trunk);
 
-        // Leaves
         if (hasLeaves) {
-            const foliageCount = type === 'sapling' ? 1 : type === 'bush' ? 5 : type === 'tree' ? 12 : type === 'autumn' ? 20 : 30;
+            const foliageCount = type === 'sapling' ? 1 : type === 'tree' ? 12 : 30;
             const size = scale * 4;
             let mat = leafMat;
-            if (type === 'autumn') mat = autumnLeafMat;
             if (type === 'ancient') mat = goldMat;
-            if (type === 'cherry') mat = new THREE.MeshStandardMaterial({color: '#F48FB1'}); // Pink
 
             for(let i=0; i<foliageCount; i++) {
                 const foliage = new THREE.Mesh(new THREE.IcosahedronGeometry(size, 0), mat);
                 foliage.position.y = trunkH + (Math.random() * size);
                 foliage.position.x = (Math.random() - 0.5) * size * 2;
                 foliage.position.z = (Math.random() - 0.5) * size * 2;
-                
-                // For ancient tree, make leaves golden/glowing
-                if (type === 'ancient') {
-                   foliage.material = goldMat;
-                }
                 grp.add(foliage);
             }
         }
         return grp;
     };
 
-    // ==========================================
-    // ROOM 1: MAIN HALL (Themed)
-    // ==========================================
+    // --- SCENE GENERATORS ---
+    const createMausoleumScene = () => {
+        const group = new THREE.Group();
+        const floor = new THREE.Mesh(new THREE.CircleGeometry(120, 64), new THREE.MeshStandardMaterial({color:'#212121'}));
+        floor.rotation.x = -Math.PI / 2; floor.position.y = -10;
+        group.add(floor);
+        
+        // Simple Mausoleum Pillars
+        for(let i=0; i<8; i++){
+            const angle = (i/8)*Math.PI*2;
+            const col = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 150, 16), new THREE.MeshStandardMaterial({color:'#616161'}));
+            col.position.set(Math.cos(angle)*80, 65, Math.sin(angle)*80);
+            group.add(col);
+        }
+        return group;
+    };
+
+    const createAncestralSanctuary = () => {
+        const group = new THREE.Group();
+        const floor = new THREE.Mesh(new THREE.CylinderGeometry(100, 80, 10, 8), new THREE.MeshStandardMaterial({color:'#E0F7FA'}));
+        floor.position.y = -15;
+        group.add(floor);
+        // Giant gold statue legs
+        const leg1 = new THREE.Mesh(new THREE.BoxGeometry(10, 40, 10), goldMat); leg1.position.set(-8, 10, -50);
+        const leg2 = new THREE.Mesh(new THREE.BoxGeometry(10, 40, 10), goldMat); leg2.position.set(8, 10, -50);
+        group.add(leg1); group.add(leg2);
+        return group;
+    };
+
     const createLibrary = () => {
       const group = new THREE.Group();
       group.position.set(LIBRARY_POS.x, 0, LIBRARY_POS.z);
@@ -376,217 +245,15 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, onRoomCha
       walls.position.y = 30;
       group.add(walls);
 
-      const dome = new THREE.Mesh(new THREE.SphereGeometry(120, 64, 32, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: themeConfig.bg, side: THREE.BackSide }));
-      dome.position.y = 70;
-      group.add(dome);
-
-      const skylight = new THREE.Mesh(new THREE.CircleGeometry(30, 32), new THREE.MeshBasicMaterial({ color: themeConfig.skylight })); 
-      skylight.rotation.x = Math.PI / 2;
-      skylight.position.y = 130;
-      group.add(skylight);
-
-      // --- RENDER PURCHASED ITEMS ---
-      // 1. Marble Mausoleum (Monument)
-      if (inventory.includes('1')) {
-          const m = new THREE.Group();
-          m.position.set(50, -10, -50);
-          const base = new THREE.Mesh(new THREE.BoxGeometry(20, 15, 20), new THREE.MeshStandardMaterial({color:'#ffffff', roughness:0.2}));
-          base.position.y = 7.5;
-          m.add(base);
-          const pillars = [-8, 8].forEach(px => [-8, 8].forEach(pz => {
-              const p = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 15), new THREE.MeshStandardMaterial({color:'#eeeeee'}));
-              p.position.set(px, 7.5, pz);
-              m.add(p);
-          }));
-          const roof = new THREE.Mesh(new THREE.ConeGeometry(15, 8, 4), new THREE.MeshStandardMaterial({color:'#333'}));
-          roof.position.y = 19;
-          roof.rotation.y = Math.PI/4;
-          m.add(roof);
-          group.add(m);
-      }
-
-      // 2. Eternal Garden (Univers) - Adds extra flowers everywhere
-      if (inventory.includes('2')) {
-          const garden = new THREE.Group();
-          for(let i=0; i<300; i++) {
-              const f = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1, 5), new THREE.MeshStandardMaterial({color: Math.random()>.5 ? '#E91E63' : '#9C27B0'}));
-              f.position.set((Math.random()-0.5)*200, -9, (Math.random()-0.5)*200);
-              f.rotation.x = Math.PI;
-              garden.add(f);
-          }
-          group.add(garden);
-      }
-
-      // 3. Digital Candle (Decoration)
-      if (inventory.includes('3')) {
-          const candles = new THREE.Group();
-          for(let i=0; i<12; i++) {
-              const angle = (i/12)*Math.PI*2;
-              const c = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1), new THREE.MeshStandardMaterial({color:'#ffffff'}));
-              c.position.set(Math.cos(angle)*15, -9.5, Math.sin(angle)*15);
-              const flame = new THREE.PointLight('#FF6D00', 0.5, 5);
-              flame.position.y = 1;
-              c.add(flame);
-              candles.add(c);
-          }
-          group.add(candles);
-      }
-
-      // 4. Ancestral Statue (Monument)
-      if (inventory.includes('4')) {
-          const stat = new THREE.Group();
-          stat.position.set(-50, -10, -50);
-          const body = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 12), goldMat);
-          body.position.y = 6;
-          stat.add(body);
-          const head = new THREE.Mesh(new THREE.SphereGeometry(3), goldMat);
-          head.position.y = 14;
-          stat.add(head);
-          group.add(stat);
-      }
-
-      // 6. Golden Ring (Decoration)
-      if (inventory.includes('6')) {
-         const ring = new THREE.Mesh(new THREE.TorusGeometry(60, 1, 16, 100), goldMat);
-         ring.rotation.x = Math.PI/2;
-         ring.position.y = 40;
-         group.add(ring);
-      }
-
-
-      // --- AFRICAN THEME: 8 STAGES OF LIFE ---
       if (theme === 'African') {
           const stages = [
-             { name: 'Birth', type: 'root' },
-             { name: 'Early Childhood', type: 'toys' },
-             { name: 'Childhood', type: 'school' },
-             { name: 'Adolescence', type: 'urban' },
-             { name: 'Young Adult', type: 'build' },
-             { name: 'Mature', type: 'heritage' },
-             { name: 'Wisdom', type: 'ancient' },
-             { name: 'Memory', type: 'trace' },
+             { name: 'Birth', type: 'root' }, { name: 'Early', type: 'toys' },
+             { name: 'School', type: 'school' }, { name: 'Urban', type: 'urban' },
+             { name: 'Build', type: 'build' }, { name: 'Heritage', type: 'heritage' },
+             { name: 'Wisdom', type: 'ancient' }
           ];
-
           stages.forEach((stage, i) => {
-              const angle = (i / 8) * Math.PI * 2;
-              const r = 85;
-              const x = Math.cos(angle) * r;
-              const z = Math.sin(angle) * r;
-              
-              const stageGroup = new THREE.Group();
-              stageGroup.position.set(x, -10, z);
-              stageGroup.rotation.y = -angle; // Face inward
-
-              // Base for the stage
-              const platform = new THREE.Mesh(new THREE.CylinderGeometry(15, 18, 2, 32), floorMat);
-              platform.position.y = 1;
-              stageGroup.add(platform);
-
-              // 1. BIRTH: The Root / Sapling
-              if (stage.type === 'root') {
-                  const sapling = createStylizedTree(0.5, true, 'sapling');
-                  stageGroup.add(sapling);
-                  const light = new THREE.PointLight(0xFFD700, 2, 20);
-                  light.position.y = 10;
-                  stageGroup.add(light);
-              }
-
-              // 2. EARLY CHILDHOOD: Floating Toys
-              if (stage.type === 'toys') {
-                  for(let j=0; j<5; j++) {
-                      const geo = j%2===0 ? new THREE.BoxGeometry(2,2,2) : new THREE.SphereGeometry(1.5);
-                      const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(j*0.2, 1, 0.5) });
-                      const toy = new THREE.Mesh(geo, mat);
-                      toy.position.set((Math.random()-0.5)*10, 5 + Math.random()*10, (Math.random()-0.5)*10);
-                      stageGroup.add(toy);
-                  }
-              }
-
-              // 3. CHILDHOOD: School / Blackboard
-              if (stage.type === 'school') {
-                  const board = new THREE.Mesh(new THREE.BoxGeometry(16, 10, 0.5), blackboardMat);
-                  board.position.y = 8;
-                  stageGroup.add(board);
-                  // Chalk lines
-                  const chalk = new THREE.Mesh(new THREE.BoxGeometry(14, 0.2, 0.6), new THREE.MeshBasicMaterial({color:'white'}));
-                  chalk.position.y = 4;
-                  chalk.position.z = 0.5;
-                  stageGroup.add(chalk);
-              }
-
-              // 4. ADOLESCENCE: Urban / Choice
-              if (stage.type === 'urban') {
-                  const wall = new THREE.Mesh(new THREE.BoxGeometry(12, 15, 1), new THREE.MeshStandardMaterial({color:'#424242'}));
-                  wall.position.y = 7.5;
-                  stageGroup.add(wall);
-                  // Neon strip
-                  const strip = new THREE.Mesh(new THREE.BoxGeometry(13, 0.5, 1.2), neonMat);
-                  strip.position.y = 10;
-                  strip.rotation.z = 0.2;
-                  stageGroup.add(strip);
-              }
-
-              // 5. YOUNG ADULT: Construction / Work
-              if (stage.type === 'build') {
-                  for(let b=0; b<6; b++) {
-                      const block = new THREE.Mesh(new THREE.BoxGeometry(4,4,4), new THREE.MeshStandardMaterial({color: b%2===0?'#795548':'#5D4037'}));
-                      block.position.set((Math.random()-0.5)*10, 2 + b*4, (Math.random()-0.5)*5);
-                      stageGroup.add(block);
-                  }
-              }
-
-              // 6. MATURE: Heritage Tree
-              if (stage.type === 'heritage') {
-                  const tree = createStylizedTree(1.5, true, 'tree');
-                  stageGroup.add(tree);
-                  // Floating frames logic is handled by main memory loop, but we add a base here
-                  const ring = new THREE.Mesh(new THREE.TorusGeometry(8, 0.5, 8, 32), goldMat);
-                  ring.rotation.x = Math.PI/2;
-                  ring.position.y = 2;
-                  stageGroup.add(ring);
-              }
-
-              // 7. WISDOM: Ancient Tree / Sunset
-              if (stage.type === 'ancient') {
-                  const tree = createStylizedTree(2.5, true, 'ancient');
-                  stageGroup.add(tree);
-                  const orb = new THREE.Mesh(new THREE.SphereGeometry(2), new THREE.MeshBasicMaterial({color: '#FF6D00'}));
-                  orb.position.y = 15;
-                  stageGroup.add(orb);
-                  const glow = new THREE.PointLight('#FF6D00', 3, 40);
-                  glow.position.y = 15;
-                  stageGroup.add(glow);
-              }
-
-              // 8. MEMORY: The Trace / Particles
-              if (stage.type === 'trace') {
-                  const particles = new THREE.Group();
-                  for(let p=0; p<20; p++) {
-                      const dot = new THREE.Mesh(new THREE.SphereGeometry(0.3), goldMat);
-                      dot.position.set((Math.random()-0.5)*10, Math.random()*20, (Math.random()-0.5)*10);
-                      particles.add(dot);
-                  }
-                  stageGroup.add(particles);
-              }
-
-              group.add(stageGroup);
-          });
-      
-      // --- EUROPEAN THEME: PATH OF SEASONS ---
-      } else if (theme === 'European') {
-          const stages = [
-             { name: 'Birth', type: 'winter' },
-             { name: 'Early Childhood', type: 'spring' },
-             { name: 'Childhood', type: 'discovery' },
-             { name: 'Adolescence', type: 'questions' },
-             { name: 'Young Adult', type: 'construction' },
-             { name: 'Mature', type: 'balance' },
-             { name: 'Late Years', type: 'autumn' },
-             { name: 'Memory', type: 'constellation' },
-          ];
-
-          stages.forEach((stage, i) => {
-              const angle = (i / 8) * Math.PI * 2;
+              const angle = (i / 7) * Math.PI * 2;
               const r = 85;
               const x = Math.cos(angle) * r;
               const z = Math.sin(angle) * r;
@@ -595,889 +262,116 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, onRoomCha
               stageGroup.position.set(x, -10, z);
               stageGroup.rotation.y = -angle; 
 
-              // 1. WINTER: Luminous Birth
-              if (stage.type === 'winter') {
-                  const platform = new THREE.Mesh(new THREE.CylinderGeometry(15, 18, 2, 32), rotundaFloorMat); // Snow texture
-                  platform.position.y = 1;
-                  stageGroup.add(platform);
-                  
-                  // Mobile
-                  for(let j=0; j<4; j++) {
-                     const star = new THREE.Mesh(new THREE.OctahedronGeometry(1), starMat);
-                     star.position.set((Math.random()-0.5)*8, 12 + Math.random()*5, (Math.random()-0.5)*8);
-                     stageGroup.add(star);
-                  }
-                  const light = new THREE.PointLight('#E1F5FE', 2, 20);
-                  light.position.y = 8;
-                  stageGroup.add(light);
-              }
-
-              // 2. SPRING: Early Childhood
-              if (stage.type === 'spring') {
-                  const platform = new THREE.Mesh(new THREE.CylinderGeometry(15, 18, 2, 32), grassMat);
-                  platform.position.y = 1;
-                  stageGroup.add(platform);
-                  
-                  // Flowers
-                  for(let j=0; j<8; j++) {
-                      const flowerGrp = new THREE.Group();
-                      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 3), new THREE.MeshStandardMaterial({color:'green'}));
-                      stem.position.y = 1.5;
-                      const petal = new THREE.Mesh(new THREE.ConeGeometry(0.8, 1, 5), flowerMat);
-                      petal.position.y = 3;
-                      petal.rotation.x = Math.PI;
-                      flowerGrp.add(stem);
-                      flowerGrp.add(petal);
-                      flowerGrp.position.set((Math.random()-0.5)*12, 2, (Math.random()-0.5)*12);
-                      stageGroup.add(flowerGrp);
-                  }
-                  const light = new THREE.PointLight('#F8BBD0', 1.5, 20);
-                  light.position.y = 8;
-                  stageGroup.add(light);
-              }
-
-              // 3. DISCOVERY: Childhood (School/Books)
-              if (stage.type === 'discovery') {
-                  const platform = new THREE.Mesh(new THREE.CylinderGeometry(15, 18, 2, 32), floorMat);
-                  platform.position.y = 1;
-                  stageGroup.add(platform);
-
-                  // Books stack
-                  for(let b=0; b<5; b++) {
-                      const book = new THREE.Mesh(new THREE.BoxGeometry(4, 1, 5), new THREE.MeshStandardMaterial({color: new THREE.Color().setHSL(b*0.1, 0.8, 0.5)}));
-                      book.position.set(0, 2.5 + b, 0);
-                      book.rotation.y = Math.random();
-                      stageGroup.add(book);
-                  }
-                  // Globe
-                  const globe = new THREE.Mesh(new THREE.SphereGeometry(2), new THREE.MeshStandardMaterial({color: '#2196F3', metalness: 0.2}));
-                  globe.position.set(5, 4, 2);
-                  stageGroup.add(globe);
-              }
-
-              // 4. QUESTIONS: Adolescence (Neon)
-              if (stage.type === 'questions') {
-                  const platform = new THREE.Mesh(new THREE.CylinderGeometry(15, 18, 2, 32), new THREE.MeshStandardMaterial({color:'#212121'}));
-                  platform.position.y = 1;
-                  stageGroup.add(platform);
-
-                  const torus = new THREE.Mesh(new THREE.TorusGeometry(6, 0.5, 16, 100), neonMat);
-                  torus.position.y = 10;
-                  torus.rotation.y = Math.PI/4;
-                  stageGroup.add(torus);
-                  
-                  const iso = new THREE.Mesh(new THREE.IcosahedronGeometry(2), new THREE.MeshBasicMaterial({color: '#FF4081', wireframe:true}));
-                  iso.position.set(-4, 6, 0);
-                  stageGroup.add(iso);
-              }
-
-              // 5. CONSTRUCTION: Young Adult (City)
-              if (stage.type === 'construction') {
-                  const platform = new THREE.Mesh(new THREE.CylinderGeometry(15, 18, 2, 32), floorMat);
-                  platform.position.y = 1;
-                  stageGroup.add(platform);
-
-                  // Skyscrapers
-                  const buildings = [
-                      {h: 12, x: -3, z: -3}, {h: 8, x: 4, z: -2}, {h: 15, x: 0, z: 4}
-                  ];
-                  buildings.forEach(b => {
-                      const build = new THREE.Mesh(new THREE.BoxGeometry(3, b.h, 3), cityGlassMat);
-                      build.position.set(b.x, 2 + b.h/2, b.z);
-                      stageGroup.add(build);
-                  });
-              }
-
-              // 6. BALANCE: Mature (Home)
-              if (stage.type === 'balance') {
-                  const platform = new THREE.Mesh(new THREE.CylinderGeometry(15, 18, 2, 32), floorMat);
-                  platform.position.y = 1;
-                  stageGroup.add(platform);
-
-                  // House shape
-                  const houseGrp = new THREE.Group();
-                  const body = new THREE.Mesh(new THREE.BoxGeometry(8, 8, 8), brickMat);
-                  body.position.y = 4;
-                  houseGrp.add(body);
-                  const roof = new THREE.Mesh(new THREE.ConeGeometry(7, 4, 4), new THREE.MeshStandardMaterial({color:'#3E2723'}));
-                  roof.position.y = 10;
-                  roof.rotation.y = Math.PI/4;
-                  houseGrp.add(roof);
-                  houseGrp.position.y = 2;
-                  stageGroup.add(houseGrp);
-              }
-
-              // 7. AUTUMN: Late Years
-              if (stage.type === 'autumn') {
-                  const platform = new THREE.Mesh(new THREE.CylinderGeometry(15, 18, 2, 32), new THREE.MeshStandardMaterial({color:'#5D4037'}));
-                  platform.position.y = 1;
-                  stageGroup.add(platform);
-
-                  const tree = createStylizedTree(1.2, true, 'autumn');
-                  tree.position.z = -5;
-                  stageGroup.add(tree);
-                  
-                  // Fallen leaves
-                  for(let l=0; l<10; l++) {
-                      const leaf = new THREE.Mesh(new THREE.CircleGeometry(0.5), autumnLeafMat);
-                      leaf.rotation.x = -Math.PI/2;
-                      leaf.position.set((Math.random()-0.5)*10, 2.1, (Math.random()-0.5)*10);
-                      stageGroup.add(leaf);
-                  }
-                  
-                  const light = new THREE.PointLight('#FF6F00', 2, 25);
-                  light.position.y = 10;
-                  stageGroup.add(light);
-              }
-
-              // 8. CONSTELLATION: Memory
-              if (stage.type === 'constellation') {
-                   const platform = new THREE.Mesh(new THREE.CylinderGeometry(15, 18, 2, 32), rotundaFloorMat);
-                   platform.position.y = 1;
-                   stageGroup.add(platform);
-                   
-                   const particles = new THREE.Group();
-                   for(let p=0; p<25; p++) {
-                       const star = new THREE.Mesh(new THREE.SphereGeometry(0.2), starMat);
-                       star.position.set((Math.random()-0.5)*12, Math.random()*25, (Math.random()-0.5)*12);
-                       particles.add(star);
-                   }
-                   stageGroup.add(particles);
-              }
-
-              group.add(stageGroup);
-          });
-
-      // --- ASIAN THEME: GARDEN OF AGES ---
-      } else if (theme === 'Asian') {
-          const stages = [
-             { name: 'Birth', type: 'source' },
-             { name: 'Early Childhood', type: 'garden' },
-             { name: 'Learning', type: 'pagoda' },
-             { name: 'Paths', type: 'bridge' },
-             { name: 'Self', type: 'fusion' },
-             { name: 'Harmony', type: 'bonsai' },
-             { name: 'Serene Autumn', type: 'zen' },
-             { name: 'Memory', type: 'lantern' },
-          ];
-
-          stages.forEach((stage, i) => {
-              const angle = (i / 8) * Math.PI * 2;
-              const r = 85;
-              const x = Math.cos(angle) * r;
-              const z = Math.sin(angle) * r;
-              
-              const stageGroup = new THREE.Group();
-              stageGroup.position.set(x, -10, z);
-              stageGroup.rotation.y = -angle;
-
-              // Base (varies per stage)
-              const platformMat = ['source', 'zen'].includes(stage.type) ? new THREE.MeshStandardMaterial({color:'#4E342E'}) : floorMat;
-              const platform = new THREE.Mesh(new THREE.CylinderGeometry(15, 18, 2, 32), platformMat);
+              const platform = new THREE.Mesh(new THREE.CylinderGeometry(15, 18, 2, 32), floorMat);
               platform.position.y = 1;
               stageGroup.add(platform);
 
-              // 1. SOURCE: Pond & Lotus
-              if (stage.type === 'source') {
-                  const pond = new THREE.Mesh(new THREE.CylinderGeometry(12, 12, 1, 32), waterMat);
-                  pond.position.y = 2.1;
-                  stageGroup.add(pond);
-                  
-                  // Lotus
-                  const lotusGrp = new THREE.Group();
-                  for(let p=0; p<8; p++) {
-                      const petal = new THREE.Mesh(new THREE.ConeGeometry(1, 4, 3), new THREE.MeshStandardMaterial({color:'#F48FB1'}));
-                      petal.rotation.x = Math.PI/4;
-                      petal.rotation.y = (p/8)*Math.PI*2;
-                      petal.position.set(Math.cos(p/8*Math.PI*2)*1.5, 1, Math.sin(p/8*Math.PI*2)*1.5);
-                      lotusGrp.add(petal);
-                  }
-                  lotusGrp.position.y = 2.5;
-                  stageGroup.add(lotusGrp);
+              if (stage.type === 'root') stageGroup.add(createStylizedTree(0.5, true, 'sapling'));
+              if (stage.type === 'school') {
+                  const board = new THREE.Mesh(new THREE.BoxGeometry(16, 10, 0.5), blackboardMat);
+                  board.position.y = 8; stageGroup.add(board);
               }
-
-              // 2. GARDEN: Bamboo Forest & Kites
-              if (stage.type === 'garden') {
-                  for(let b=0; b<8; b++) {
-                      const h = 10 + Math.random()*10;
-                      const bamboo = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.6, h, 8), bambooMat);
-                      bamboo.position.set((Math.random()-0.5)*14, h/2+2, (Math.random()-0.5)*14);
-                      stageGroup.add(bamboo);
-                  }
-                  // Kite
-                  const kite = new THREE.Mesh(new THREE.OctahedronGeometry(1.5, 0), new THREE.MeshStandardMaterial({color:'#E91E63'}));
-                  kite.scale.set(1, 1.5, 0.2);
-                  kite.position.set(0, 15, 0);
-                  kite.rotation.z = 0.5;
-                  stageGroup.add(kite);
+              if (stage.type === 'urban') {
+                  const strip = new THREE.Mesh(new THREE.BoxGeometry(13, 0.5, 1.2), neonMat);
+                  strip.position.y = 10; stageGroup.add(strip);
               }
-
-              // 3. LEARNING: Pagoda pillars & Calligraphy
-              if (stage.type === 'pagoda') {
-                  const pillar = new THREE.Mesh(new THREE.BoxGeometry(4, 15, 4), lacquerMat);
-                  pillar.position.y = 8;
-                  stageGroup.add(pillar);
-                  
-                  // Floating "Characters" (Abstract black strokes)
-                  for(let c=0; c<5; c++) {
-                      const stroke = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 0.1), inkMat);
-                      stroke.position.set((Math.random()-0.5)*10, 5 + c*3, 6);
-                      stroke.rotation.z = Math.random()*Math.PI;
-                      stageGroup.add(stroke);
-                  }
+              if (stage.type === 'ancient') {
+                  const tree = createStylizedTree(2.5, true, 'ancient');
+                  stageGroup.add(tree);
               }
-
-              // 4. PATHS: Bridge & Neon
-              if (stage.type === 'bridge') {
-                   // Arched bridge shape
-                   const bridge = new THREE.Mesh(new THREE.TorusGeometry(10, 2, 16, 20, Math.PI), lacquerMat);
-                   bridge.rotation.x = Math.PI/2;
-                   bridge.scale.set(1, 0.5, 1);
-                   bridge.position.y = 2;
-                   stageGroup.add(bridge);
-                   
-                   const neon = new THREE.Mesh(new THREE.BoxGeometry(0.5, 12, 0.5), neonMat);
-                   neon.position.set(6, 6, 0);
-                   stageGroup.add(neon);
-              }
-
-              // 5. SELF: Fusion (Torii + Skyscraper)
-              if (stage.type === 'fusion') {
-                  // Torii Gate base
-                  const postGeo = new THREE.CylinderGeometry(0.8, 0.8, 12);
-                  const p1 = new THREE.Mesh(postGeo, lacquerMat); p1.position.set(-5, 6, 0);
-                  const p2 = new THREE.Mesh(postGeo, lacquerMat); p2.position.set(5, 6, 0);
-                  const top = new THREE.Mesh(new THREE.BoxGeometry(14, 1, 1), lacquerMat); top.position.y = 11;
-                  stageGroup.add(p1); stageGroup.add(p2); stageGroup.add(top);
-
-                  // Glass shard emerging
-                  const shard = new THREE.Mesh(new THREE.ConeGeometry(3, 20, 4), cityGlassMat);
-                  shard.rotation.y = Math.PI/4;
-                  shard.position.y = 10;
-                  shard.position.z = -2;
-                  stageGroup.add(shard);
-              }
-
-              // 6. HARMONY: Bonsai
-              if (stage.type === 'bonsai') {
-                  const table = new THREE.Mesh(new THREE.BoxGeometry(10, 2, 6), new THREE.MeshStandardMaterial({color:'#5D4037'}));
-                  table.position.y = 3;
-                  stageGroup.add(table);
-                  
-                  const bonsai = createStylizedTree(0.3, true, 'tree');
-                  bonsai.position.y = 4;
-                  stageGroup.add(bonsai);
-              }
-
-              // 7. ZEN: Autumn Garden
-              if (stage.type === 'zen') {
-                  const sand = new THREE.Mesh(new THREE.CylinderGeometry(14, 14, 1, 32), new THREE.MeshStandardMaterial({color:'#E0E0E0'})); // White sand
-                  sand.position.y = 2;
-                  stageGroup.add(sand);
-                  
-                  // Rock
-                  const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(1.5), new THREE.MeshStandardMaterial({color:'#757575'}));
-                  rock.position.set(3, 3, 2);
-                  stageGroup.add(rock);
-                  
-                  const maple = createStylizedTree(0.8, true, 'autumn');
-                  maple.position.set(-4, 2, -2);
-                  stageGroup.add(maple);
-              }
-
-              // 8. ETERNAL LANTERN
-              if (stage.type === 'lantern') {
-                  const lantern = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 8, 8), paperMat);
-                  lantern.position.y = 8;
-                  stageGroup.add(lantern);
-                  
-                  const cap = new THREE.Mesh(new THREE.ConeGeometry(4, 2, 8), lacquerMat);
-                  cap.position.y = 13;
-                  stageGroup.add(cap);
-
-                  const light = new THREE.PointLight('#FFCDD2', 3, 30);
-                  light.position.y = 8;
-                  stageGroup.add(light);
-                  
-                  // Rising particles
-                  const parts = new THREE.Group();
-                  for(let p=0; p<15; p++) {
-                      const sp = new THREE.Mesh(new THREE.SphereGeometry(0.2), new THREE.MeshBasicMaterial({color:'#FFD700'}));
-                      sp.position.set((Math.random()-0.5)*6, Math.random()*20, (Math.random()-0.5)*6);
-                      parts.add(sp);
-                  }
-                  stageGroup.add(parts);
-              }
-
               group.add(stageGroup);
           });
-
+      } else if (theme === 'Asian') {
+          for(let i=0; i<40; i++) {
+               const h = 20 + Math.random()*20;
+               const bamboo = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.8, h, 8), bambooMat);
+               bamboo.position.set((Math.random()-0.5)*100, h/2 - 10, (Math.random()-0.5)*100);
+               if(Math.abs(bamboo.position.x) > 15) group.add(bamboo);
+           }
+           // Torii gate
+           const torii = new THREE.Group();
+           const post1 = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 15), lacquerMat); post1.position.set(-6, 7.5, -40);
+           const post2 = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 15), lacquerMat); post2.position.set(6, 7.5, -40);
+           const topBar = new THREE.Mesh(new THREE.BoxGeometry(16, 1, 1), lacquerMat); topBar.position.set(0, 14, -40);
+           torii.add(post1); torii.add(post2); torii.add(topBar);
+           group.add(torii);
       } else {
-          // --- FALLBACK (Should not happen with current logic but kept for safety) ---
-          for (let i = 0; i < 12; i++) {
-              const angle = (i / 12) * Math.PI * 2;
-              const r = 80;
-              const colGroup = new THREE.Group();
-              colGroup.position.set(Math.cos(angle) * r, -10, Math.sin(angle) * r);
-              colGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 60, 32), columnMainMat).translateY(32));
-              group.add(colGroup);
+          for(let i=0; i<12; i++) {
+              const angle = (i/12)*Math.PI*2;
+              const col = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 40, 16), columnMainMat);
+              col.position.set(Math.cos(angle)*50, 10, Math.sin(angle)*50);
+              group.add(col);
           }
       }
-
-      scene.add(group);
+      return group;
     };
 
-    // ==========================================
-    // ROOM 2: WINTER CHRISTMAS ROTUNDA (Unchanged usually, but accessible)
-    // ==========================================
-    const createRotunda = () => {
-      const group = new THREE.Group();
-      group.position.set(ROTUNDA_POS.x, 0, ROTUNDA_POS.z);
-
-      const floor = new THREE.Mesh(new THREE.CircleGeometry(120, 64), rotundaFloorMat);
-      floor.rotation.x = -Math.PI / 2;
-      floor.position.y = -10;
-      floor.receiveShadow = true;
-      group.add(floor);
-
-      const walls = new THREE.Mesh(new THREE.CylinderGeometry(120, 120, 80, 64, 1, true).scale(-1, 1, 1), rotundaWallMat);
-      walls.position.y = 30;
-      group.add(walls);
-
-      const dome = new THREE.Mesh(new THREE.SphereGeometry(120, 64, 32, 0, Math.PI * 2, 0, Math.PI / 2), rotundaDomeMat);
-      dome.position.y = 70;
-      group.add(dome);
-
-      const skylight = new THREE.Mesh(new THREE.CircleGeometry(30, 32), new THREE.MeshBasicMaterial({ color: '#cfd8dc' }));
-      skylight.rotation.x = Math.PI / 2;
-      skylight.position.y = 130;
-      group.add(skylight);
-
-      for (let i = 0; i < 12; i++) {
-          const angle = (i / 12) * Math.PI * 2;
-          const r = 80;
-          const colGroup = new THREE.Group();
-          colGroup.position.set(Math.cos(angle)*r, -10, Math.sin(angle)*r);
-          colGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(5, 6, 2, 32), rotundaColumnMat).translateY(1));
-          colGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(3.5, 3.5, 60, 32), rotundaColumnMat).translateY(32));
-          colGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(6, 4, 4, 32), rotundaColumnMat).translateY(62));
-          group.add(colGroup);
-      }
-
-      const treeGroup = new THREE.Group();
-      treeGroup.position.y = -10;
-      treeGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(2, 2.5, 8, 16), new THREE.MeshStandardMaterial({color:'#3e2723'})).translateY(4));
-      
-      const needleMat = new THREE.MeshStandardMaterial({ color: '#1b5e20', roughness: 0.8 });
-      [10, 18, 26, 32].forEach((y, i) => {
-         const r = 14 - i*3;
-         const h = 16 - i*2;
-         treeGroup.add(new THREE.Mesh(new THREE.ConeGeometry(r, h, 32), needleMat).translateY(y));
-      });
-      
-      treeGroup.add(new THREE.Mesh(new THREE.OctahedronGeometry(1.5), new THREE.MeshStandardMaterial({color:'#FFDF8C', emissive:'#FFDF8C'})).translateY(38)); 
-      
-      for(let i=0; i<40; i++) {
-        const o = new THREE.Mesh(new THREE.SphereGeometry(0.4), new THREE.MeshStandardMaterial({color:Math.random()>.5?'#FFA5B7':'#9D8EFF', emissiveIntensity:0.5})); 
-        const theta = Math.random()*Math.PI*2;
-        const h = 6 + Math.random()*30;
-        const r = (1 - (h-6)/32) * 12;
-        o.position.set(Math.cos(theta)*r, h, Math.sin(theta)*r);
-        treeGroup.add(o);
-      }
-      group.add(treeGroup);
-
-      for(let i=0; i<6; i++) {
-         const angle = (i/6)*Math.PI*2;
-         const sb = new THREE.Group();
-         sb.position.set(Math.cos(angle)*35, -10, Math.sin(angle)*35);
-         sb.rotation.y = -angle + Math.PI;
-         sb.add(new THREE.Mesh(new THREE.SphereGeometry(3), snowParticleMat).translateY(3));
-         sb.add(new THREE.Mesh(new THREE.SphereGeometry(2.2), snowParticleMat).translateY(7));
-         sb.add(new THREE.Mesh(new THREE.SphereGeometry(1.5), snowParticleMat).translateY(10));
-         sb.add(new THREE.Mesh(new THREE.ConeGeometry(0.3, 1.5), new THREE.MeshStandardMaterial({color:'#ff6d00'})).rotateX(Math.PI/2).translateY(1.5).translateZ(10));
-         group.add(sb);
-      }
-
-      scene.add(group);
-    };
+    let envGroup: THREE.Group;
+    if (equippedItemId === '1') envGroup = createMausoleumScene();
+    else if (equippedItemId === '4') envGroup = createAncestralSanctuary();
+    else envGroup = createLibrary();
     
-    const corridorGeo = new THREE.PlaneGeometry(40, 350);
-    const corridor = new THREE.Mesh(corridorGeo, floorMat); 
-    corridor.rotation.x = -Math.PI/2;
-    corridor.position.set(0, -9.9, -175);
-    scene.add(corridor);
+    scene.add(envGroup);
 
-    createLibrary();
-    createRotunda();
+    // Add Memories
+    memories.forEach((mem, i) => {
+        const angle = (i / (memories.length || 1)) * Math.PI * 2;
+        const radius = 30;
+        const x = Math.cos(angle) * radius;
+        const z = Math.sin(angle) * radius;
+        
+        const color = getEmotionColor(mem.emotions);
+        const mesh = new THREE.Mesh(
+            new THREE.BoxGeometry(3, 4, 0.2), 
+            new THREE.MeshStandardMaterial({ color: color, emissive: color, emissiveIntensity: 0.5 })
+        );
+        mesh.position.set(x, 0, z);
+        mesh.lookAt(0, 0, 0);
+        scene.add(mesh);
+    });
 
-    // --- LIGHTING ---
-    const ambientLight = new THREE.AmbientLight(themeConfig.lightColor, themeConfig.lightIntensity); 
+    // Lights
+    const ambientLight = new THREE.AmbientLight(themeConfig.lightColor, themeConfig.lightIntensity);
     scene.add(ambientLight);
-    const sunLight = new THREE.DirectionalLight(themeConfig.sunColor, themeConfig.sunIntensity);
-    sunLight.position.set(50, 150, 50);
-    sunLight.castShadow = true;
-    scene.add(sunLight);
+    const dirLight = new THREE.DirectionalLight(themeConfig.sunColor, themeConfig.sunIntensity);
+    dirLight.position.set(50, 100, 50);
+    scene.add(dirLight);
 
-    // --- PARTICLES ---
-    const petalCount = 1500;
-    const petalsMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.5, 0.5), new THREE.MeshBasicMaterial({ color: theme === 'Asian' ? '#ffcdd2' : 0xFFDF8C, side: THREE.DoubleSide, opacity: 0.8, transparent: true }), petalCount); // Pink if Asian, else Gold
-    const petalData = new Float32Array(petalCount * 4); 
-    const dummy = new THREE.Object3D();
-    for(let i=0; i<petalCount; i++) {
-        petalData[i*4] = (Math.random()-0.5)*220; petalData[i*4+1] = Math.random()*80; petalData[i*4+2] = (Math.random()-0.5)*220; petalData[i*4+3] = Math.random()*6;
-    }
-    scene.add(petalsMesh);
-
-    const snowCount = 2000;
-    const snowMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.3, 0.3), new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, opacity: 0.9, transparent: true }), snowCount);
-    const snowData = new Float32Array(snowCount * 4);
-    for(let i=0; i<snowCount; i++) {
-        snowData[i*4] = (Math.random()-0.5)*220 + ROTUNDA_POS.x; snowData[i*4+1] = Math.random()*80; snowData[i*4+2] = (Math.random()-0.5)*220 + ROTUNDA_POS.z; snowData[i*4+3] = Math.random()*6;
-    }
-    scene.add(snowMesh);
-
-    // --- REALISTIC CHARACTER ---
-    const charGroup = new THREE.Group();
-    charGroup.position.set(LIBRARY_POS.x, -10, LIBRARY_POS.z + 60);
-    
-    const head = new THREE.Mesh(new THREE.SphereGeometry(1.2, 16, 16), skinMat);
-    head.position.y = 16.5;
-    head.rotation.y = -Math.PI/2; 
-    charGroup.add(head);
-
-    const torso = new THREE.Mesh(new THREE.BoxGeometry(3, 5, 1.5), shirtMat);
-    torso.position.y = 13;
-    charGroup.add(torso);
-
-    const leftArmGrp = new THREE.Group(); leftArmGrp.position.set(-1.8, 15, 0); charGroup.add(leftArmGrp);
-    const rightArmGrp = new THREE.Group(); rightArmGrp.position.set(1.8, 15, 0); charGroup.add(rightArmGrp);
-    
-    const armGeo = new THREE.CapsuleGeometry(0.6, 4, 4, 8);
-    const leftArmMesh = new THREE.Mesh(armGeo, shirtMat); leftArmMesh.position.y = -2; leftArmGrp.add(leftArmMesh);
-    const rightArmMesh = new THREE.Mesh(armGeo, shirtMat); rightArmMesh.position.y = -2; rightArmGrp.add(rightArmMesh);
-
-    const leftLegGrp = new THREE.Group(); leftLegGrp.position.set(-0.8, 10.5, 0); charGroup.add(leftLegGrp);
-    const rightLegGrp = new THREE.Group(); rightLegGrp.position.set(0.8, 10.5, 0); charGroup.add(rightLegGrp);
-
-    const legGeo = new THREE.CapsuleGeometry(0.7, 5, 4, 8);
-    const leftLegMesh = new THREE.Mesh(legGeo, pantsMat); leftLegMesh.position.y = -2.5; leftLegGrp.add(leftLegMesh);
-    const rightLegMesh = new THREE.Mesh(legGeo, pantsMat); rightLegMesh.position.y = -2.5; rightLegGrp.add(rightLegMesh);
-    
-    const shoeGeo = new THREE.BoxGeometry(1, 0.8, 2);
-    const leftShoe = new THREE.Mesh(shoeGeo, shoeMat); leftShoe.position.set(0, -5, 0.5); leftLegGrp.add(leftShoe);
-    const rightShoe = new THREE.Mesh(shoeGeo, shoeMat); rightShoe.position.set(0, -5, 0.5); rightLegGrp.add(rightShoe);
-
-    scene.add(charGroup);
-    characterRef.current = charGroup;
-
-    const galleryGroup = new THREE.Group();
-    scene.add(galleryGroup);
-    galleryGroupRef.current = galleryGroup;
-
-    // --- Animation Loop ---
+    // Loop
     const animate = () => {
-      reqRef.current = requestAnimationFrame(animate);
-      const time = Date.now() * 0.001;
-
-      // Particles
-      for(let i=0; i<petalCount; i++) {
-        let y = petalData[i*4+1] - 0.05;
-        if(y<-10) y=70;
-        petalData[i*4+1] = y;
-        dummy.position.set(petalData[i*4], y, petalData[i*4+2]);
-        dummy.rotation.set(time+petalData[i*4+3], time, 0);
-        dummy.updateMatrix();
-        petalsMesh.setMatrixAt(i, dummy.matrix);
-      }
-      petalsMesh.instanceMatrix.needsUpdate = true;
-      
-      for(let i=0; i<snowCount; i++) {
-        let y = snowData[i*4+1] - 0.08;
-        if(y<-10) y=70;
-        snowData[i*4+1] = y;
-        dummy.position.set(snowData[i*4], y, snowData[i*4+2]);
-        dummy.rotation.set(time+snowData[i*4+3], time, 0);
-        dummy.updateMatrix();
-        snowMesh.setMatrixAt(i, dummy.matrix);
-      }
-      snowMesh.instanceMatrix.needsUpdate = true;
-
-      // Animate Artifacts (Floating Frames + Breathing Images)
-      artifactsRef.current.forEach((artifact, i) => {
-         // Gentle float
-         artifact.position.y = 5 + Math.sin(time + i) * 0.5;
-         
-         // Subtle rotation
-         // artifact.rotation.y = (initialRotation) + Math.sin(time * 0.5) * 0.05;
-
-         // Image pulsation (Material index 4 is the image)
-         if (Array.isArray(artifact.material)) {
-             const mat = artifact.material[4] as THREE.MeshBasicMaterial;
-             if (mat) {
-                 const pulse = 0.8 + Math.sin(time * 2 + i) * 0.2;
-                 mat.color.setHSL(0, 0, pulse); 
-             }
-         }
-      });
-
-      // CAMERA CONTROLS (ZQSD / WASD physical)
-      if (keysPressed.current['KeyA']) {
-        cameraAngle.current.theta += 0.03;
-      }
-      if (keysPressed.current['KeyD']) {
-        cameraAngle.current.theta -= 0.03;
-      }
-      if (keysPressed.current['KeyW']) {
-        cameraAngle.current.phi = Math.max(0.1, cameraAngle.current.phi - 0.03);
-      }
-      if (keysPressed.current['KeyS']) {
-        cameraAngle.current.phi = Math.min(Math.PI / 1.5, cameraAngle.current.phi + 0.03);
-      }
-
-      // CHARACTER MOVEMENT (ARROWS ONLY)
-      if (characterRef.current && cameraRef.current) {
-          const char = characterRef.current;
-          const speed = characterSpeed;
-
-          let inputFwd = 0;
-          let inputRight = 0;
-
-          if (keysPressed.current['ArrowUp']) inputFwd = 1;
-          if (keysPressed.current['ArrowDown']) inputFwd = -1;
-          if (keysPressed.current['ArrowLeft']) inputRight = -1;
-          if (keysPressed.current['ArrowRight']) inputRight = 1;
-
-          if (inputFwd !== 0 || inputRight !== 0) {
-              
-              const camDir = new THREE.Vector3();
-              cameraRef.current.getWorldDirection(camDir);
-              camDir.y = 0;
-              camDir.normalize();
-
-              const camRight = new THREE.Vector3();
-              camRight.crossVectors(camDir, new THREE.Vector3(0, 1, 0));
-
-              const moveVec = new THREE.Vector3()
-                .addScaledVector(camDir, inputFwd)
-                .addScaledVector(camRight, inputRight)
-                .normalize()
-                .multiplyScalar(speed);
-
-              const nextX = char.position.x + moveVec.x;
-              const nextZ = char.position.z + moveVec.z;
-
-              const targetRot = Math.atan2(moveVec.x, moveVec.z);
-              let rotDiff = targetRot - char.rotation.y;
-              while (rotDiff > Math.PI) rotDiff -= Math.PI * 2;
-              while (rotDiff < -Math.PI) rotDiff += Math.PI * 2;
-              char.rotation.y += rotDiff * 0.2;
-
-              const distLib = Math.sqrt(nextX**2 + nextZ**2);
-              const distRot = Math.sqrt(nextX**2 + (nextZ - ROTUNDA_POS.z)**2);
-              const inLibrary = distLib < 110;
-              const inRotunda = distRot < 110;
-              const inCorridor = Math.abs(nextX) < 20 && nextZ < 0 && nextZ > ROTUNDA_POS.z;
-
-              if (inLibrary || inRotunda || inCorridor) {
-                  char.position.x = nextX;
-                  char.position.z = nextZ;
-              }
-
-              leftLegGrp.rotation.x = Math.sin(time * 10) * 0.6;
-              rightLegGrp.rotation.x = -Math.sin(time * 10) * 0.6;
-              leftArmGrp.rotation.x = -Math.sin(time * 10) * 0.6;
-              rightArmGrp.rotation.x = Math.sin(time * 10) * 0.6;
-              char.position.y = -10 + Math.abs(Math.sin(time * 20)) * 0.1;
-          } else {
-              leftLegGrp.rotation.x = 0; rightLegGrp.rotation.x = 0;
-              leftArmGrp.rotation.x = 0; rightArmGrp.rotation.x = 0;
-              char.position.y = -10;
-          }
-
-          if (char.position.z > -100) {
-              if (onRoomChange) onRoomChange('library');
-          } else if (char.position.z < -250) {
-              if (onRoomChange) onRoomChange('rotunda');
-          }
-      }
-
-      // Camera Follow
-      if (characterRef.current) {
-          const charPos = characterRef.current.position;
-          const r = 40;
-          const offsetX = r * Math.sin(cameraAngle.current.phi) * Math.cos(cameraAngle.current.theta);
-          const offsetY = r * Math.cos(cameraAngle.current.phi);
-          const offsetZ = r * Math.sin(cameraAngle.current.phi) * Math.sin(cameraAngle.current.theta);
-          
-          camera.position.lerp(new THREE.Vector3(charPos.x + offsetX, charPos.y + offsetY, charPos.z + offsetZ), 0.1);
-          camera.lookAt(charPos.x, charPos.y + 10, charPos.z);
-      }
-
-      renderer.render(scene, camera);
+        reqRef.current = requestAnimationFrame(animate);
+        cameraAngle.current.theta += 0.0005;
+        camera.position.x = 80 * Math.sin(cameraAngle.current.theta);
+        camera.position.z = 80 * Math.cos(cameraAngle.current.theta);
+        camera.position.y = 30;
+        camera.lookAt(0, 0, 0);
+        renderer.render(scene, camera);
     };
     animate();
 
+    // Resize
     const handleResize = () => {
-      if (!mountRef.current || !rendererRef.current || !cameraRef.current) return;
-      const w = mountRef.current.clientWidth;
-      const h = mountRef.current.clientHeight;
-      cameraRef.current.aspect = w / h;
-      cameraRef.current.updateProjectionMatrix();
-      rendererRef.current.setSize(w, h);
+        if (!mountRef.current) return;
+        const w = mountRef.current.clientWidth;
+        const h = mountRef.current.clientHeight;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
     };
     window.addEventListener('resize', handleResize);
 
-    const handleKeyDown = (e: KeyboardEvent) => { keysPressed.current[e.code] = true; };
-    const handleKeyUp = (e: KeyboardEvent) => { keysPressed.current[e.code] = false; };
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-
     return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-      cancelAnimationFrame(reqRef.current);
-      if (rendererRef.current && mountRef.current) {
-        mountRef.current.removeChild(rendererRef.current.domElement);
-        rendererRef.current.dispose();
-      }
-    };
-  }, [theme, inventory]); // Re-run when theme changes or inventory changes
-
-  // --- Render Images (Updated for Memories) ---
-  useEffect(() => {
-    if (!galleryGroupRef.current) return;
-    const group = galleryGroupRef.current;
-    
-    // Clear old artifacts
-    while(group.children.length > 0){ 
-      const child = group.children[0] as THREE.Mesh;
-      if (child.geometry) child.geometry.dispose();
-      if (Array.isArray(child.material)) (child.material as any[]).forEach(m=>m.dispose());
-      else (child.material as any).dispose();
-      group.remove(child); 
-    }
-    
-    artifactsRef.current = []; // Reset reference list for animation
-
-    const loader = new THREE.TextureLoader();
-    
-    // Filter memories that have images
-    const visualMemories = memories.filter(m => m.image);
-
-    visualMemories.forEach((memory, index) => {
-        const angle = (index * (Math.PI/6)) + Math.PI; // Distribute in circle
-        const r = 115; // Radius matches walls
-        const x = Math.cos(angle)*r;
-        const z = Math.sin(angle)*r;
-        
-        // Emotion Color for Frame
-        const frameColor = getEmotionColor(memory.emotions);
-
-        loader.load(memory.image!, (tex) => {
-            tex.colorSpace = THREE.SRGBColorSpace;
-            const aspect = tex.image.width/tex.image.height;
-            let w=15, h=15; if(aspect>1) h=w/aspect; else w=h*aspect;
-            
-            // Frame Geometry
-            const geo = new THREE.BoxGeometry(w, h, 0.5);
-            // Neon/Glowing Material for Frame
-            const mat = new THREE.MeshStandardMaterial({
-                color: frameColor, 
-                roughness: 0.2, 
-                metalness: 0.9,
-                emissive: frameColor,
-                emissiveIntensity: 0.5
-            });
-            // Image Material
-            const imgMat = new THREE.MeshBasicMaterial({map:tex});
-            
-            const mesh = new THREE.Mesh(geo, [mat,mat,mat,mat,imgMat,mat]);
-            mesh.position.set(x, 5, z);
-            mesh.lookAt(0, 5, 0);
-            
-            // Attach memory to user data for click detection
-            mesh.userData = { memory: memory };
-
-            group.add(mesh);
-            artifactsRef.current.push(mesh);
-        });
-    });
-
-  }, [memories]); // Re-run when memories change
-
-  // --- Interaction Handlers ---
-  const handleMouseDown = (e: React.MouseEvent) => {
-    isDragging.current = true;
-    startDragTime.current = Date.now();
-    previousMousePosition.current = { x: e.clientX, y: e.clientY };
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging.current) return;
-    const deltaX = e.clientX - previousMousePosition.current.x;
-    const deltaY = e.clientY - previousMousePosition.current.y;
-    cameraAngle.current.theta -= deltaX * 0.005;
-    cameraAngle.current.phi -= deltaY * 0.005;
-    cameraAngle.current.phi = Math.max(0.1, Math.min(Math.PI / 1.5, cameraAngle.current.phi));
-    previousMousePosition.current = { x: e.clientX, y: e.clientY };
-  };
-
-  const handleMouseUp = (e: React.MouseEvent) => {
-    isDragging.current = false;
-    // Check if it was a click (short duration, small movement handled by logic or simple timeout)
-    const duration = Date.now() - startDragTime.current;
-    if (duration < 200) {
-       handleClickRaycast(e);
-    }
-  };
-
-  const handleClickRaycast = (e: React.MouseEvent) => {
-     if (!mountRef.current || !cameraRef.current) return;
-     
-     const raycaster = new THREE.Raycaster();
-     const mouse = new THREE.Vector2();
-     const rect = mountRef.current.getBoundingClientRect();
-     
-     mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-     mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-     
-     raycaster.setFromCamera(mouse, cameraRef.current);
-     const intersects = raycaster.intersectObjects(artifactsRef.current);
-     
-     if (intersects.length > 0) {
-        const object = intersects[0].object;
-        if (object.userData && object.userData.memory) {
-           setZoomedMemory(object.userData.memory);
+        window.removeEventListener('resize', handleResize);
+        cancelAnimationFrame(reqRef.current);
+        if (mountRef.current && renderer.domElement) {
+            mountRef.current.removeChild(renderer.domElement);
         }
-     }
-  };
+        renderer.dispose();
+    };
 
-  return (
-    <div 
-      ref={mountRef} 
-      className="w-full h-full min-h-[500px] cursor-move relative bg-black"
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={() => { isDragging.current = false; }}
-    >
-        {/* ZOOM MODAL */}
-        {zoomedMemory && (
-            <div 
-                className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-8 animate-fade-in"
-                onClick={() => setZoomedMemory(null)}
-            >
-                <div className="max-w-4xl w-full bg-white rounded-2xl overflow-hidden shadow-2xl flex flex-col md:flex-row relative" onClick={(e) => e.stopPropagation()}>
-                    <button 
-                        onClick={() => setZoomedMemory(null)} 
-                        className="absolute top-4 right-4 text-black bg-white/50 rounded-full w-8 h-8 flex items-center justify-center font-bold hover:bg-white z-10"
-                    >
-                        ✕
-                    </button>
-                    <div className="md:w-1/2 bg-black flex items-center justify-center">
-                        <img src={zoomedMemory.image} alt="Zoomed" className="max-h-[60vh] md:max-h-[80vh] w-auto object-contain" />
-                    </div>
-                    <div className="md:w-1/2 p-8 flex flex-col justify-center bg-white text-slate-800">
-                        <div className="mb-4">
-                            <span className="text-xs font-bold uppercase tracking-wider text-brand-purple mb-1 block">Memory from</span>
-                            <span className="text-sm font-serif text-slate-500">{zoomedMemory.date}</span>
-                            {zoomedMemory.ageAtMoment && <span className="block text-xs font-bold text-slate-400 mt-1">Age: {zoomedMemory.ageAtMoment}</span>}
-                        </div>
-                        <p className="font-serif text-2xl md:text-3xl leading-relaxed mb-6">"{zoomedMemory.content}"</p>
-                        <div className="flex gap-2 flex-wrap">
-                            {zoomedMemory.emotions.map(e => <span key={e} className="px-3 py-1 bg-brand-pink/20 text-brand-purple rounded-full text-xs font-bold">{e}</span>)}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        )}
+  }, [memories, theme, inventory, equippedItemId]);
 
-        {/* Navigation UI */}
-        <div className="absolute top-4 left-4 z-10 flex flex-col space-y-2">
-            <button 
-              onClick={(e) => { e.stopPropagation(); teleport('library'); }}
-              className="bg-black/60 text-white px-4 py-2 rounded-lg border border-white/20 hover:bg-white/10 transition shadow-lg backdrop-blur flex items-center gap-2"
-            >
-              <span>☀️</span> Main Hall
-            </button>
-            <button 
-              onClick={(e) => { e.stopPropagation(); teleport('rotunda'); }}
-              className="bg-black/60 text-white px-4 py-2 rounded-lg border border-white/20 hover:bg-white/10 transition shadow-lg backdrop-blur flex items-center gap-2"
-            >
-               <span>❄️</span> Winter Cabin
-            </button>
-        </div>
-
-        {/* Music Control */}
-        <div className="absolute bottom-6 left-6 z-10">
-          <button 
-            onClick={toggleMusic}
-            className={`flex items-center space-x-3 px-4 py-3 rounded-full backdrop-blur-md transition-all border ${
-              isPlaying 
-                ? 'bg-brand-purple/20 border-brand-purple text-white shadow-[0_0_15px_rgba(157,142,255,0.5)]' 
-                : 'bg-black/60 border-white/20 text-slate-300 hover:bg-white/10'
-            }`}
-          >
-            <div className={`w-3 h-3 rounded-full ${isPlaying ? 'bg-brand-pink animate-pulse' : 'bg-slate-500'}`} />
-            <div className="flex flex-col text-left">
-              <span className="text-xs font-bold uppercase tracking-wider opacity-80">Now Playing</span>
-              <span className="text-sm font-serif italic">Gymnopedie No. 1 - Satie</span>
-            </div>
-          </button>
-        </div>
-
-        {/* D-PAD CONTROL */}
-        <div className="absolute bottom-8 right-8 z-20 flex flex-col items-center gap-2 select-none">
-            <button
-              className="w-12 h-12 bg-white/10 backdrop-blur-md border border-white/20 rounded-full active:bg-white/20 flex items-center justify-center text-white transition-all shadow-lg hover:bg-white/20 hover:border-brand-yellow/50"
-              onMouseDown={() => setInput('ArrowUp', true)}
-              onMouseUp={() => setInput('ArrowUp', false)}
-              onMouseLeave={() => setInput('ArrowUp', false)}
-              onTouchStart={(e) => { e.preventDefault(); setInput('ArrowUp', true); }}
-              onTouchEnd={(e) => { e.preventDefault(); setInput('ArrowUp', false); }}
-            >
-              <svg className="w-6 h-6 transform rotate-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
-            </button>
-            <div className="flex gap-2">
-              <button
-                className="w-12 h-12 bg-white/10 backdrop-blur-md border border-white/20 rounded-full active:bg-white/20 flex items-center justify-center text-white transition-all shadow-lg hover:bg-white/20 hover:border-brand-yellow/50"
-                onMouseDown={() => setInput('ArrowLeft', true)}
-                onMouseUp={() => setInput('ArrowLeft', false)}
-                onMouseLeave={() => setInput('ArrowLeft', false)}
-                onTouchStart={(e) => { e.preventDefault(); setInput('ArrowLeft', true); }}
-                onTouchEnd={(e) => { e.preventDefault(); setInput('ArrowLeft', false); }}
-              >
-                <svg className="w-6 h-6 transform -rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
-              </button>
-              <button
-                className="w-12 h-12 bg-white/10 backdrop-blur-md border border-white/20 rounded-full active:bg-white/20 flex items-center justify-center text-white transition-all shadow-lg hover:bg-white/20 hover:border-brand-yellow/50"
-                onMouseDown={() => setInput('ArrowDown', true)}
-                onMouseUp={() => setInput('ArrowDown', false)}
-                onMouseLeave={() => setInput('ArrowDown', false)}
-                onTouchStart={(e) => { e.preventDefault(); setInput('ArrowDown', true); }}
-                onTouchEnd={(e) => { e.preventDefault(); setInput('ArrowDown', false); }}
-              >
-                <svg className="w-6 h-6 transform rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
-              </button>
-              <button
-                className="w-12 h-12 bg-white/10 backdrop-blur-md border border-white/20 rounded-full active:bg-white/20 flex items-center justify-center text-white transition-all shadow-lg hover:bg-white/20 hover:border-brand-yellow/50"
-                onMouseDown={() => setInput('ArrowRight', true)}
-                onMouseUp={() => setInput('ArrowRight', false)}
-                onMouseLeave={() => setInput('ArrowRight', false)}
-                onTouchStart={(e) => { e.preventDefault(); setInput('ArrowRight', true); }}
-                onTouchEnd={(e) => { e.preventDefault(); setInput('ArrowRight', false); }}
-              >
-                <svg className="w-6 h-6 transform rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
-              </button>
-            </div>
-            <div className="text-[10px] text-white/50 font-bold mt-2 text-center">
-              Arrows to Move<br/>ZQSD to Look
-            </div>
-        </div>
-    </div>
-  );
+  return <div ref={mountRef} className="w-full h-full" />;
 };
 
 export default Scene3D;

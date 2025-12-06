@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { analyzeMemory, askLegacyAdvisor } from './services/geminiService';
+import { audioService } from './services/audioService';
 import { Memory, ChatMessage, Product } from './types';
 import Scene3D from './components/Scene3D';
 
@@ -23,6 +24,7 @@ const App: React.FC = () => {
   // --- ECONOMY STATE ---
   const [balance, setBalance] = useState(5.0); // Initial balance in ETH/MEME
   const [inventory, setInventory] = useState<string[]>([]); // Array of Product IDs
+  const [equippedItemId, setEquippedItemId] = useState<string | null>(null); // For Monuments/Environments
 
   // --- ORIGIN / THEME STATE ---
   const [showOriginModal, setShowOriginModal] = useState(false);
@@ -51,10 +53,19 @@ const App: React.FC = () => {
   const [shopFilter, setShopFilter] = useState<'All' | 'Monuments' | 'Decorations' | 'Univers'>('All');
 
   // --- HANDLERS ---
+  const handleNavChange = (view: typeof currentView) => {
+      if (view !== currentView) {
+          audioService.playNav();
+          setCurrentView(view);
+      }
+  };
+
   const connectWallet = () => {
+    audioService.playClick();
     if (!isWalletConnected) {
       setIsWalletConnected(true);
       setWalletAddress('0x71C...9A23');
+      audioService.playSuccess();
     } else {
       setIsWalletConnected(false);
       setWalletAddress('');
@@ -62,18 +73,21 @@ const App: React.FC = () => {
   };
 
   const handleStartLegacyClick = () => {
+    audioService.playClick();
     setShowOriginModal(true);
   };
 
   const handleOriginSelection = (theme: OriginTheme) => {
+    audioService.playSuccess();
     setSelectedTheme(theme);
     setShowOriginModal(false);
-    setCurrentView('onboarding'); // Go to onboarding instead of library
+    setCurrentView('onboarding'); 
   };
 
   // Handle Image Upload for Onboarding
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
+      audioService.playClick();
       const file = e.target.files[0];
       const imageUrl = URL.createObjectURL(file);
       setUploadImage(imageUrl);
@@ -83,6 +97,7 @@ const App: React.FC = () => {
   // Handle Image Upload for Library
   const handleLibraryImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
+      audioService.playClick();
       const file = e.target.files[0];
       const imageUrl = URL.createObjectURL(file);
       setLibraryImage(imageUrl);
@@ -92,6 +107,7 @@ const App: React.FC = () => {
   const handleFinishOnboarding = async () => {
     if (!uploadDesc.trim()) return;
     
+    audioService.playClick();
     setIsAnalyzing(true);
     // Analyze the initial memory
     const { emotions, themes } = await analyzeMemory(uploadDesc);
@@ -113,11 +129,13 @@ const App: React.FC = () => {
     setUploadDesc('');
     setUploadImage(null);
     setIsAnalyzing(false);
+    audioService.playSuccess();
     setCurrentView('library');
   };
 
   const handleSaveMemory = async () => {
     if (!memoryInput.trim()) return;
+    audioService.playClick();
     setIsAnalyzing(true);
     
     const { emotions, themes } = await analyzeMemory(memoryInput);
@@ -137,21 +155,46 @@ const App: React.FC = () => {
     setLibraryImage(null);
     setLibraryAge('');
     setIsAnalyzing(false);
+    audioService.playSuccess();
   };
 
   const handlePurchase = (product: Product) => {
-    if (inventory.includes(product.id)) return;
+    if (inventory.includes(product.id)) {
+      audioService.playClick();
+      // Logic to equip if it's a monument
+      if (product.category === 'Monuments') {
+         if (equippedItemId === product.id) {
+           setEquippedItemId(null); 
+         } else {
+           setEquippedItemId(product.id); 
+           audioService.playSuccess();
+           alert(`You have transformed your Metaverse into the ${product.title}.`);
+         }
+      }
+      return;
+    }
+
     if (balance >= product.price) {
+      audioService.playClick();
       setBalance(prev => prev - product.price);
       setInventory(prev => [...prev, product.id]);
-      alert(`You have successfully purchased ${product.title}. It has been added to your Metaverse.`);
+      audioService.playSuccess();
+      // Auto equip monuments on purchase
+      if (product.category === 'Monuments') {
+        setEquippedItemId(product.id);
+        alert(`You purchased ${product.title}. Your world has been transformed.`);
+      } else {
+        alert(`You purchased ${product.title}. It has been added to your Metaverse.`);
+      }
     } else {
+      audioService.playError();
       alert("Insufficient funds. Stake more tokens to earn rewards.");
     }
   };
 
   const handleAdvisorSubmit = async () => {
     if (!chatInput.trim()) return;
+    audioService.playClick();
     
     const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', text: chatInput };
     setChatMessages(prev => [...prev, userMsg]);
@@ -167,6 +210,7 @@ const App: React.FC = () => {
     
     setIsAiTyping(false);
     setChatMessages(prev => [...prev, { id: (Date.now()+1).toString(), role: 'ai', text: responseText || "Silence..." }]);
+    audioService.playSuccess();
   };
 
   return (
@@ -174,7 +218,7 @@ const App: React.FC = () => {
       
       {/* --- ORIGIN SELECTION MODAL --- */}
       {showOriginModal && (
-        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-6">
+        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-6 animate-fade-in">
           <div className="max-w-5xl w-full bg-brand-surface border border-brand-purple/20 rounded-2xl p-8 md:p-12 relative overflow-hidden">
             {/* Background decoration */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-brand-purple/10 rounded-full blur-[80px]"></div>
@@ -188,6 +232,7 @@ const App: React.FC = () => {
               {/* African Card */}
               <button 
                 onClick={() => handleOriginSelection('African')}
+                onMouseEnter={() => audioService.playNav()}
                 className="group relative h-96 rounded-xl overflow-hidden border border-white/10 hover:border-brand-yellow/50 transition-all hover:scale-105"
               >
                 <img src="https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?q=80&w=800&auto=format&fit=crop" alt="African" className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-90 transition-opacity duration-700" />
@@ -204,6 +249,7 @@ const App: React.FC = () => {
               {/* European Card */}
               <button 
                 onClick={() => handleOriginSelection('European')}
+                onMouseEnter={() => audioService.playNav()}
                 className="group relative h-96 rounded-xl overflow-hidden border border-white/10 hover:border-brand-purple/50 transition-all hover:scale-105"
               >
                 <img src="https://images.unsplash.com/photo-1552432552-06c0b3d6ee56?q=80&w=800&auto=format&fit=crop" alt="European" className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-90 transition-opacity duration-700" />
@@ -220,6 +266,7 @@ const App: React.FC = () => {
               {/* Asian Card */}
               <button 
                 onClick={() => handleOriginSelection('Asian')}
+                onMouseEnter={() => audioService.playNav()}
                 className="group relative h-96 rounded-xl overflow-hidden border border-white/10 hover:border-brand-pink/50 transition-all hover:scale-105"
               >
                 <img src="https://images.unsplash.com/photo-1528360983277-13d9b152c6d4?q=80&w=800&auto=format&fit=crop" alt="Asian" className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-90 transition-opacity duration-700" />
@@ -242,11 +289,11 @@ const App: React.FC = () => {
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           
           {/* Logo */}
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => setCurrentView('home')}>
-            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-brand-purple to-brand-pink flex items-center justify-center shadow-[0_0_15px_rgba(157,142,255,0.4)]">
+          <div className="flex items-center gap-3 cursor-pointer group" onClick={() => handleNavChange('home')}>
+            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-brand-purple to-brand-pink flex items-center justify-center shadow-[0_0_15px_rgba(157,142,255,0.4)] group-hover:shadow-[0_0_25px_rgba(157,142,255,0.6)] transition-shadow">
               <svg className="w-6 h-6 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             </div>
-            <span className="font-serif text-2xl font-bold tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-brand-pink via-white to-brand-purple">
+            <span className="font-serif text-2xl font-bold tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-brand-pink via-white to-brand-purple group-hover:to-brand-pink transition-all duration-500">
               BeyondMemories
             </span>
           </div>
@@ -259,7 +306,7 @@ const App: React.FC = () => {
                return (
                  <button 
                   key={item}
-                  onClick={() => setCurrentView(viewKey === 'mylibrary' ? 'library' : viewKey === 'lifeshop' ? 'shop' : viewKey === 'legacyadvisor' ? 'advisor' : viewKey)}
+                  onClick={() => handleNavChange(viewKey === 'mylibrary' ? 'library' : viewKey === 'lifeshop' ? 'shop' : viewKey === 'legacyadvisor' ? 'advisor' : viewKey)}
                   className={`hover:text-brand-pink transition-colors py-2 relative ${isActive ? 'text-white' : ''}`}
                  >
                    {item}
@@ -293,12 +340,12 @@ const App: React.FC = () => {
       <main>
         {/* ================= HERO SECTION (HOME) ================= */}
         {currentView === 'home' && (
-          <div className="bg-brand-black min-h-[calc(100vh-80px)] relative overflow-hidden text-white flex flex-col items-center">
+          <div className="bg-brand-black min-h-[calc(100vh-80px)] relative overflow-hidden text-white flex flex-col items-center animate-fade-in">
             
             {/* Background Effects */}
             <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-              <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-brand-purple/20 rounded-full blur-[120px] mix-blend-screen"></div>
-              <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[60%] bg-brand-pink/10 rounded-full blur-[100px] mix-blend-screen"></div>
+              <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-brand-purple/20 rounded-full blur-[120px] mix-blend-screen animate-pulse-slow"></div>
+              <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[60%] bg-brand-pink/10 rounded-full blur-[100px] mix-blend-screen animate-pulse-slow"></div>
               <div className="absolute top-[40%] left-[40%] w-[20%] h-[20%] bg-brand-yellow/5 rounded-full blur-[80px] mix-blend-screen"></div>
             </div>
 
@@ -320,7 +367,10 @@ const App: React.FC = () => {
                 <button onClick={handleStartLegacyClick} className="px-8 py-4 bg-gradient-to-r from-brand-purple to-brand-pink hover:from-brand-purple/90 hover:to-brand-pink/90 rounded-full text-black font-bold shadow-[0_0_30px_rgba(157,142,255,0.4)] transition-all transform hover:scale-105">
                   Start Your Legacy
                 </button>
-                <button onClick={() => setCurrentView('metaverse')} className="px-8 py-4 bg-transparent border border-white/20 hover:bg-white/5 rounded-full text-white font-medium backdrop-blur-sm transition-all flex items-center gap-2 group">
+                <button 
+                  onClick={() => handleNavChange('metaverse')} 
+                  className="px-8 py-4 bg-transparent border border-white/20 hover:bg-white/5 rounded-full text-white font-medium backdrop-blur-sm transition-all flex items-center gap-2 group"
+                >
                   <span>Enter Metaverse</span>
                   <span className="group-hover:translate-x-1 transition-transform">→</span>
                 </button>
@@ -346,7 +396,7 @@ const App: React.FC = () => {
 
         {/* ================= ONBOARDING / UPLOAD VIEW ================= */}
         {currentView === 'onboarding' && (
-          <div className="min-h-[calc(100vh-80px)] bg-brand-black flex items-center justify-center p-6 relative overflow-hidden">
+          <div className="min-h-[calc(100vh-80px)] bg-brand-black flex items-center justify-center p-6 relative overflow-hidden animate-fade-in">
              {/* Background Image depending on Theme */}
              <div className="absolute inset-0 opacity-20 pointer-events-none">
                  <img 
@@ -418,14 +468,21 @@ const App: React.FC = () => {
 
         {/* ================= METAVERSE VIEW ================= */}
         {currentView === 'metaverse' && (
-             <div className="h-[calc(100vh-80px)] w-full relative bg-black">
-                 <Scene3D memories={memories} theme={selectedTheme} inventory={inventory} /> 
+             <div className="h-[calc(100vh-80px)] w-full relative bg-black animate-fade-in">
+                 <Scene3D 
+                    memories={memories} 
+                    theme={selectedTheme} 
+                    inventory={inventory} 
+                    equippedItemId={equippedItemId}
+                 /> 
                  <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/50 text-xs text-center pointer-events-none z-10">
                     Use <span className="font-bold text-brand-yellow">ZQSD</span> or <span className="font-bold text-brand-yellow">Arrows</span> to explore.<br/>
                     Click on floating memories to zoom.
                  </div>
                  <div className="absolute top-8 right-8 text-white/30 text-xs text-right pointer-events-none z-10">
-                    Theme: <span className="font-bold text-white">{selectedTheme} Architecture</span><br/>
+                    Theme: <span className="font-bold text-white">
+                      {equippedItemId === '1' ? 'Marble Mausoleum' : equippedItemId === '4' ? 'Ancestral Sanctuary' : `${selectedTheme} Architecture`}
+                    </span><br/>
                     Objects Owned: <span className="font-bold text-brand-pink">{inventory.length}</span>
                  </div>
              </div>
@@ -433,7 +490,7 @@ const App: React.FC = () => {
 
         {/* ================= LIBRARY VIEW ================= */}
         {currentView === 'library' && (
-          <div className="max-w-7xl mx-auto px-6 py-12 bg-white min-h-[calc(100vh-80px)]">
+          <div className="max-w-7xl mx-auto px-6 py-12 bg-white min-h-[calc(100vh-80px)] animate-fade-in">
             <h2 className="font-serif text-4xl text-black mb-8">My Memory Vault</h2>
             
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
@@ -541,7 +598,7 @@ const App: React.FC = () => {
 
         {/* ================= SHOP VIEW ================= */}
         {currentView === 'shop' && (
-          <div className="flex flex-col lg:flex-row min-h-[calc(100vh-80px)] bg-white">
+          <div className="flex flex-col lg:flex-row min-h-[calc(100vh-80px)] bg-white animate-fade-in">
              {/* Sidebar */}
              <div className="lg:w-64 bg-slate-50 border-r border-slate-200 p-6 space-y-8">
                <h3 className="font-serif text-xl font-bold text-black">Life-Shop</h3>
@@ -549,7 +606,7 @@ const App: React.FC = () => {
                  {['All', 'Monuments', 'Decorations', 'Univers'].map(cat => (
                    <button 
                     key={cat}
-                    onClick={() => setShopFilter(cat as any)}
+                    onClick={() => { audioService.playNav(); setShopFilter(cat as any); }}
                     className={`block w-full text-left px-4 py-2 rounded-lg text-sm transition-colors ${shopFilter === cat ? 'bg-brand-purple text-white font-bold shadow-lg shadow-brand-purple/30' : 'text-slate-600 hover:bg-white'}`}
                    >
                      {cat}
@@ -568,8 +625,11 @@ const App: React.FC = () => {
                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {PRODUCTS.filter(p => shopFilter === 'All' || p.category === shopFilter).map(product => {
                     const isOwned = inventory.includes(product.id);
+                    const isEquipped = equippedItemId === product.id;
+                    const isMonument = product.category === 'Monuments';
+
                     return (
-                    <div key={product.id} className="bg-slate-50 rounded-xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-xl hover:shadow-brand-purple/10 transition-all group">
+                    <div key={product.id} className={`bg-slate-50 rounded-xl shadow-sm border overflow-hidden hover:shadow-xl hover:shadow-brand-purple/10 transition-all group ${isEquipped ? 'border-brand-purple ring-2 ring-brand-purple/30' : 'border-slate-100'}`}>
                        <div className="h-48 overflow-hidden relative">
                          <img src={product.image} alt={product.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                          <span className={`absolute top-2 right-2 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider text-black ${
@@ -579,6 +639,11 @@ const App: React.FC = () => {
                          }`}>
                            {product.rarity}
                          </span>
+                         {isEquipped && (
+                           <div className="absolute inset-0 bg-brand-purple/20 flex items-center justify-center backdrop-blur-[2px]">
+                              <span className="bg-black/80 text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest border border-brand-purple">Active Environment</span>
+                           </div>
+                         )}
                        </div>
                        <div className="p-5">
                           <p className="text-xs text-slate-400 mb-1">{product.category}</p>
@@ -587,16 +652,22 @@ const App: React.FC = () => {
                              <span className="font-bold text-brand-purple">{product.price} MEME</span>
                              <button 
                                onClick={() => handlePurchase(product)}
-                               disabled={isOwned || balance < product.price}
+                               disabled={(!isOwned && balance < product.price)}
                                className={`px-3 py-1.5 text-xs font-bold rounded transition-colors ${
                                  isOwned 
-                                  ? 'bg-green-100 text-green-700 cursor-default' 
+                                  ? (isMonument 
+                                      ? (isEquipped ? 'bg-brand-purple text-white cursor-pointer hover:bg-red-500 hover:text-white' : 'bg-black text-white hover:bg-brand-purple')
+                                      : 'bg-green-100 text-green-700 cursor-default')
                                   : balance < product.price 
                                     ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
                                     : 'bg-black text-white hover:bg-brand-pink hover:text-black'
                                }`}
                              >
-                               {isOwned ? 'Owned' : 'Purchase'}
+                               {isOwned 
+                                 ? (isMonument 
+                                     ? (isEquipped ? 'Unequip' : 'Equip World') 
+                                     : 'Owned') 
+                                 : 'Purchase'}
                              </button>
                           </div>
                        </div>
@@ -609,7 +680,7 @@ const App: React.FC = () => {
 
         {/* ================= ADVISOR VIEW ================= */}
         {currentView === 'advisor' && (
-          <div className="max-w-4xl mx-auto px-6 py-12 h-[calc(100vh-80px)] flex flex-col bg-white">
+          <div className="max-w-4xl mx-auto px-6 py-12 h-[calc(100vh-80px)] flex flex-col bg-white animate-fade-in">
             <div className="text-center mb-10">
               <h2 className="font-serif text-3xl text-black mb-2">The Legacy Advisor</h2>
               <p className="text-slate-500 text-sm">A philosophical AI guide for your digital eternity.</p>
@@ -668,7 +739,7 @@ const App: React.FC = () => {
 
         {/* ================= TOKENOMICS VIEW ================= */}
         {currentView === 'tokenomics' && (
-          <div className="bg-brand-black min-h-[calc(100vh-80px)] text-white p-6 md:p-12">
+          <div className="bg-brand-black min-h-[calc(100vh-80px)] text-white p-6 md:p-12 animate-fade-in">
              <div className="max-w-6xl mx-auto">
                <h2 className="font-serif text-4xl mb-12 border-b border-white/10 pb-6 text-brand-pink">Protocol Statistics</h2>
                
@@ -726,7 +797,10 @@ const App: React.FC = () => {
                     <div className="relative z-10">
                         <h3 className="font-serif text-3xl font-bold mb-4 text-white">Secure Your Legacy Today</h3>
                         <p className="max-w-xl mx-auto mb-8 text-slate-400">Invest in the eternity of your memories. Stakers receive premium Metaverse plots.</p>
-                        <button className="px-8 py-3 bg-white text-black font-bold rounded-full hover:bg-brand-yellow transition-colors shadow-[0_0_20px_rgba(255,255,255,0.3)]">
+                        <button 
+                            className="px-8 py-3 bg-white text-black font-bold rounded-full hover:bg-brand-yellow transition-colors shadow-[0_0_20px_rgba(255,255,255,0.3)]"
+                            onClick={() => { audioService.playClick(); alert('Redirecting to Exchange...'); }}
+                        >
                         Buy $MEME Token
                         </button>
                     </div>
