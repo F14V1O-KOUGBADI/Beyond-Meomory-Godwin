@@ -1,0 +1,225 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BeyondMemories - Document de Design UX (FR)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              serif: ['Playfair Display', 'serif'],
+            },
+            colors: {
+              brand: {
+                black: '#000000',
+                purple: '#9D8EFF',
+                pink: '#FFA5B7',
+                yellow: '#FFDF8C',
+                surface: '#121212', 
+              }
+            }
+          },
+        },
+      }
+    </script>
+    <style>
+        @media print {
+            @page {
+                margin: 0;
+                size: A4;
+            }
+            body {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .page-break {
+                page-break-after: always;
+            }
+        }
+        body {
+            background-color: #000000;
+            color: #e2e8f0;
+        }
+        .gradient-text {
+            background: linear-gradient(to right, #9D8EFF, #FFA5B7, #FFDF8C);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- PAGE 1: COUVERTURE -->
+    <div class="w-full min-h-[297mm] relative flex flex-col items-center justify-center p-12 overflow-hidden page-break">
+        <!-- Background Accents -->
+        <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-brand-purple/20 rounded-full blur-[120px]"></div>
+        <div class="absolute bottom-0 left-0 w-[500px] h-[500px] bg-brand-pink/10 rounded-full blur-[120px]"></div>
+        
+        <div class="relative z-10 text-center border-y border-white/10 py-20 w-full max-w-4xl">
+            <div class="mb-8 flex justify-center">
+                <div class="w-16 h-16 rounded-full bg-gradient-to-tr from-brand-purple to-brand-pink flex items-center justify-center shadow-[0_0_30px_rgba(157,142,255,0.4)]">
+                    <span class="text-3xl">🏛️</span>
+                </div>
+            </div>
+            <h1 class="font-serif text-6xl md:text-8xl font-bold mb-6 text-white tracking-tight">BeyondMemories</h1>
+            <p class="font-serif text-2xl italic gradient-text mb-12">Protocole d'Héritage Numérique Web3</p>
+            
+            <div class="text-slate-400 font-sans tracking-[0.2em] uppercase text-sm">
+                Expérience Utilisateur & Résonance Culturelle<br>
+                Documentation de Design
+            </div>
+        </div>
+
+        <div class="absolute bottom-12 text-slate-600 text-xs uppercase tracking-widest">
+            Confidentiel • Système de Design 2024
+        </div>
+    </div>
+
+    <!-- PAGE 2: INTRODUCTION & PARCOURS -->
+    <div class="w-full min-h-[297mm] relative p-16 bg-brand-surface page-break">
+        <div class="max-w-4xl mx-auto">
+            <h2 class="font-serif text-4xl text-white mb-2 border-b border-brand-purple/30 pb-4">1. Vision & Concept</h2>
+            <p class="text-slate-300 leading-relaxed mb-12 text-lg">
+                <strong class="text-white">BeyondMemories</strong> n'est pas une simple solution de stockage ; c'est un sanctuaire numérique. 
+                Notre promesse, <em class="text-brand-yellow">"Votre histoire, éternellement préservée"</em>, guide une interface conçue pour évoquer la solennité, le luxe et la permanence. 
+                Ce document retrace le rituel de passage de l'utilisateur, de simple visiteur à Gardien de l'Héritage.
+            </p>
+
+            <h2 class="font-serif text-4xl text-white mb-8 border-b border-brand-purple/30 pb-4">2. Cartographie du Parcours Utilisateur</h2>
+            
+            <div class="space-y-6">
+                <!-- Phase 1 -->
+                <div class="glass-panel p-8 rounded-xl relative overflow-hidden">
+                    <div class="absolute left-0 top-0 bottom-0 w-1 bg-brand-purple"></div>
+                    <h3 class="font-serif text-2xl text-white mb-2">Phase 1 : La Révélation (Onboarding)</h3>
+                    <ul class="space-y-2 text-slate-400 text-sm">
+                        <li><span class="text-brand-purple">●</span> <strong>Visuel :</strong> Mode sombre "Cyber-Luxe", particules flottantes, audio piano minimaliste.</li>
+                        <li><span class="text-brand-purple">●</span> <strong>Action :</strong> Connexion du Wallet. Ce geste signifie la prise de possession de la clé privée de son histoire.</li>
+                        <li><span class="text-brand-purple">●</span> <strong>Émotion :</strong> Curiosité mêlée de solennité.</li>
+                    </ul>
+                </div>
+
+                <!-- Phase 2 -->
+                <div class="glass-panel p-8 rounded-xl relative overflow-hidden">
+                    <div class="absolute left-0 top-0 bottom-0 w-1 bg-brand-pink"></div>
+                    <h3 class="font-serif text-2xl text-white mb-2">Phase 2 : L'Ancrage Culturel</h3>
+                    <ul class="space-y-2 text-slate-400 text-sm">
+                        <li><span class="text-brand-pink">●</span> <strong>Le Pivot :</strong> L'utilisateur choisit son origine (Africaine, Européenne, Asiatique).</li>
+                        <li><span class="text-brand-pink">●</span> <strong>Signification :</strong> Il ne choisit pas un "thème", mais la terre dans laquelle ses souvenirs prendront racine.</li>
+                        <li><span class="text-brand-pink">●</span> <strong>Résultat :</strong> L'architecture du Métavers se reconfigure instantanément pour refléter cet héritage.</li>
+                    </ul>
+                </div>
+
+                <!-- Phase 3 -->
+                <div class="glass-panel p-8 rounded-xl relative overflow-hidden">
+                    <div class="absolute left-0 top-0 bottom-0 w-1 bg-brand-yellow"></div>
+                    <h3 class="font-serif text-2xl text-white mb-2">Phase 3 : La Moisson (Upload)</h3>
+                    <ul class="space-y-2 text-slate-400 text-sm">
+                        <li><span class="text-brand-yellow">●</span> <strong>Entrée :</strong> Photo + Description + Âge.</li>
+                        <li><span class="text-brand-yellow">●</span> <strong>Alchimie IA :</strong> Gemini extrait les émotions (Joie, Nostalgie) pour assigner une aura colorée.</li>
+                        <li><span class="text-brand-yellow">●</span> <strong>Stockage :</strong> Le souvenir est chiffré et placé dans le Coffre-fort.</li>
+                    </ul>
+                </div>
+
+                <!-- Phase 4 -->
+                <div class="glass-panel p-8 rounded-xl relative overflow-hidden">
+                    <div class="absolute left-0 top-0 bottom-0 w-1 bg-white"></div>
+                    <h3 class="font-serif text-2xl text-white mb-2">Phase 4 : L'Immersion (Métavers)</h3>
+                    <p class="text-slate-400 text-sm">L'utilisateur déambule dans un musée 3D de sa propre vie. Les souvenirs flottent comme des artefacts précieux. Les objets achetés (statues, nébuleuses) enrichissent physiquement l'environnement.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAGE 3: RESONANCE CULTURELLE -->
+    <div class="w-full min-h-[297mm] relative p-16 bg-black page-break">
+        <div class="absolute top-0 right-0 w-[300px] h-[300px] bg-brand-yellow/10 rounded-full blur-[100px]"></div>
+
+        <div class="max-w-4xl mx-auto">
+            <h2 class="font-serif text-4xl text-white mb-10 border-b border-brand-purple/30 pb-4">3. Analyse de la Résonance Culturelle</h2>
+            
+            <p class="text-slate-400 mb-12">
+                BeyondMemories réduit la friction cognitive en alignant l'environnement 3D avec les symboles culturels subconscients de l'utilisateur.
+            </p>
+
+            <div class="grid grid-cols-1 gap-10">
+                
+                <!-- African Theme -->
+                <div class="border border-brand-yellow/30 p-8 rounded-2xl bg-gradient-to-br from-brand-surface to-black">
+                    <div class="flex items-center gap-4 mb-4">
+                        <span class="text-4xl">🌍</span>
+                        <h3 class="font-serif text-3xl text-brand-yellow">L'Expérience Africaine</h3>
+                    </div>
+                    <p class="text-white font-medium mb-4">"La Terre & Le Soleil"</p>
+                    <div class="grid grid-cols-2 gap-8 text-sm text-slate-400">
+                        <div>
+                            <strong class="text-white block mb-1">Architecture</strong>
+                            Tons ocre chauds, bois sombre, espaces ouverts. L'ancre centrale est le <span class="text-brand-yellow">Baobab</span> (Arbre de Vie), symbole du rassemblement et de l'oralité.
+                        </div>
+                        <div>
+                            <strong class="text-white block mb-1">Éclairage</strong>
+                            Coucher de soleil perpétuel (Heure Dorée). Évoque la chaleur, la sérénité et la transmission.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- European Theme -->
+                <div class="border border-brand-purple/30 p-8 rounded-2xl bg-gradient-to-br from-brand-surface to-black">
+                    <div class="flex items-center gap-4 mb-4">
+                        <span class="text-4xl">🏛️</span>
+                        <h3 class="font-serif text-3xl text-brand-purple">L'Expérience Européenne</h3>
+                    </div>
+                    <p class="text-white font-medium mb-4">"Le Marbre & Les Saisons"</p>
+                    <div class="grid grid-cols-2 gap-8 text-sm text-slate-400">
+                        <div>
+                            <strong class="text-white block mb-1">Architecture</strong>
+                            Structures classiques, marbre blanc, verre et acier. L'agencement suit un "Chemin des Saisons" linéaire (de l'Hiver de la naissance à l'Automne de la sagesse).
+                        </div>
+                        <div>
+                            <strong class="text-white block mb-1">Éclairage</strong>
+                            Lumière froide, pure, muséale. Évoque l'éternité, la clarté et l'histoire.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Asian Theme -->
+                <div class="border border-brand-pink/30 p-8 rounded-2xl bg-gradient-to-br from-brand-surface to-black">
+                    <div class="flex items-center gap-4 mb-4">
+                        <span class="text-4xl">⛩️</span>
+                        <h3 class="font-serif text-3xl text-brand-pink">L'Expérience Asiatique</h3>
+                    </div>
+                    <p class="text-white font-medium mb-4">"Le Flux & L'Harmonie"</p>
+                    <div class="grid grid-cols-2 gap-8 text-sm text-slate-400">
+                        <div>
+                            <strong class="text-white block mb-1">Architecture</strong>
+                            Forêts de bambous de jade, temples laqués rouges, lanternes de papier. L'espace est fluide ("Jardin des Âges"), privilégiant l'harmonie aux murs rigides.
+                        </div>
+                        <div>
+                            <strong class="text-white block mb-1">Éclairage</strong>
+                            Ambiance douce, mystique, au clair de lune. Encourage la contemplation intérieure (Zen).
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="mt-16 pt-8 border-t border-white/10 text-center">
+                <p class="font-serif text-xl text-white">"Nous ne construisons pas un logiciel. Nous bâtissons une demeure pour l'âme."</p>
+                <p class="text-slate-500 text-sm mt-2">— Philosophie UX de BeyondMemories</p>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
