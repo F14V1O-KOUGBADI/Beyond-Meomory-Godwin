@@ -18,6 +18,10 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
   const reqRef = useRef<number>(0);
   const artifactsRef = useRef<THREE.Mesh[]>([]);
   
+  // Character Refs
+  const characterRef = useRef<THREE.Group | null>(null);
+  const keysPressed = useRef<{ [key: string]: boolean }>({});
+
   // Interaction state
   const cameraAngle = useRef({ theta: Math.PI / 2, phi: Math.PI / 2.5 });
   
@@ -63,6 +67,10 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
       audio.src = '';
     };
   }, []);
+
+  const setInput = (key: string, value: boolean) => {
+    keysPressed.current[key] = value;
+  };
 
   // --- Theme Colors Configuration ---
   const getThemeColors = () => {
@@ -134,7 +142,7 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
     mountRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // --- MATERIALS ---
+    // --- TEXTURES ---
     const createTexture = (color1: string, color2: string, size = 512, type = 'check') => {
         const canvas = document.createElement('canvas');
         canvas.width = size; canvas.height = size;
@@ -167,6 +175,18 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
     floorTex.repeat.set(24, 24);
     const wallTex = createTexture(themeConfig.wall, themeConfig.bg, 512, 'noise');
     
+    const faceCanvas = document.createElement('canvas');
+    faceCanvas.width = 128; faceCanvas.height = 128;
+    const fctx = faceCanvas.getContext('2d');
+    if (fctx) {
+       fctx.fillStyle = '#ffccbc'; fctx.fillRect(0,0,128,128);
+       fctx.fillStyle = '#333';
+       fctx.fillRect(35, 50, 15, 15);
+       fctx.fillRect(80, 50, 15, 15);
+       fctx.beginPath(); fctx.arc(64, 85, 20, 0, Math.PI); fctx.stroke();
+    }
+    const faceTex = new THREE.CanvasTexture(faceCanvas);
+
     const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, roughness: theme === 'African' ? 1 : 0.3 });
     const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.9 });
     const columnMainMat = new THREE.MeshStandardMaterial({ color: themeConfig.columnMain, roughness: 0.5 });
@@ -174,22 +194,26 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
     const lacquerMat = new THREE.MeshStandardMaterial({ color: '#B71C1C', roughness: 0.2 });
     const goldMat = new THREE.MeshStandardMaterial({ color: '#FFD700', metalness: 0.9, roughness: 0.2 });
     const leafMat = new THREE.MeshStandardMaterial({ color: '#558B2F', roughness: 0.8 });
+    const autumnLeafMat = new THREE.MeshStandardMaterial({ color: '#FF6F00', roughness: 0.8 });
     const blackboardMat = new THREE.MeshStandardMaterial({ color: '#263238', roughness: 0.8 });
     const neonMat = new THREE.MeshBasicMaterial({ color: '#00E5FF' });
 
-    const createStylizedTree = (scale: number, hasLeaves: boolean, type: 'sapling'|'bush'|'tree'|'ancient') => {
+    const createStylizedTree = (scale: number, hasLeaves: boolean, type: 'sapling'|'bush'|'tree'|'ancient'|'autumn'|'cherry') => {
         const grp = new THREE.Group();
         const trunkH = scale * 10;
         const trunkR = scale;
-        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(trunkR * 0.7, trunkR, trunkH, 8), new THREE.MeshStandardMaterial({color: '#3E2723'}));
+        const trunkColor = type === 'cherry' ? '#5D4037' : '#3E2723';
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(trunkR * 0.7, trunkR, trunkH, 8), new THREE.MeshStandardMaterial({color: trunkColor}));
         trunk.position.y = trunkH / 2;
         grp.add(trunk);
 
         if (hasLeaves) {
-            const foliageCount = type === 'sapling' ? 1 : type === 'tree' ? 12 : 30;
+            const foliageCount = type === 'sapling' ? 1 : type === 'bush' ? 5 : type === 'tree' ? 12 : type === 'autumn' ? 20 : 30;
             const size = scale * 4;
             let mat = leafMat;
+            if (type === 'autumn') mat = autumnLeafMat;
             if (type === 'ancient') mat = goldMat;
+            if (type === 'cherry') mat = new THREE.MeshStandardMaterial({color: '#F48FB1'});
 
             for(let i=0; i<foliageCount; i++) {
                 const foliage = new THREE.Mesh(new THREE.IcosahedronGeometry(size, 0), mat);
@@ -250,10 +274,10 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
              { name: 'Birth', type: 'root' }, { name: 'Early', type: 'toys' },
              { name: 'School', type: 'school' }, { name: 'Urban', type: 'urban' },
              { name: 'Build', type: 'build' }, { name: 'Heritage', type: 'heritage' },
-             { name: 'Wisdom', type: 'ancient' }
+             { name: 'Wisdom', type: 'ancient' }, { name: 'Memory', type: 'trace'}
           ];
           stages.forEach((stage, i) => {
-              const angle = (i / 7) * Math.PI * 2;
+              const angle = (i / 8) * Math.PI * 2;
               const r = 85;
               const x = Math.cos(angle) * r;
               const z = Math.sin(angle) * r;
@@ -267,6 +291,12 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
               stageGroup.add(platform);
 
               if (stage.type === 'root') stageGroup.add(createStylizedTree(0.5, true, 'sapling'));
+              if (stage.type === 'toys') {
+                  for(let j=0;j<3;j++) {
+                      const t = new THREE.Mesh(new THREE.BoxGeometry(2,2,2), new THREE.MeshStandardMaterial({color: Math.random()*0xffffff}));
+                      t.position.set((j-1)*3, 3, 0); stageGroup.add(t);
+                  }
+              }
               if (stage.type === 'school') {
                   const board = new THREE.Mesh(new THREE.BoxGeometry(16, 10, 0.5), blackboardMat);
                   board.position.y = 8; stageGroup.add(board);
@@ -279,6 +309,13 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
                   const tree = createStylizedTree(2.5, true, 'ancient');
                   stageGroup.add(tree);
               }
+               if (stage.type === 'build') {
+                  const bl = new THREE.Mesh(new THREE.BoxGeometry(6,12,6), new THREE.MeshStandardMaterial({color:'#90CAF9', transparent:true, opacity:0.5}));
+                  bl.position.y = 6; stageGroup.add(bl);
+              }
+              if (stage.type === 'heritage') {
+                  stageGroup.add(createStylizedTree(1.5, true, 'tree'));
+              }
               group.add(stageGroup);
           });
       } else if (theme === 'Asian') {
@@ -288,7 +325,6 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
                bamboo.position.set((Math.random()-0.5)*100, h/2 - 10, (Math.random()-0.5)*100);
                if(Math.abs(bamboo.position.x) > 15) group.add(bamboo);
            }
-           // Torii gate
            const torii = new THREE.Group();
            const post1 = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 15), lacquerMat); post1.position.set(-6, 7.5, -40);
            const post2 = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 15), lacquerMat); post2.position.set(6, 7.5, -40);
@@ -303,6 +339,31 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
               group.add(col);
           }
       }
+      
+       // --- Render Inventory ---
+        if (inventory.includes('2')) { // Garden
+            const garden = new THREE.Group();
+            for(let i=0; i<300; i++) {
+                const f = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1, 5), new THREE.MeshStandardMaterial({color: Math.random()>.5 ? '#E91E63' : '#9C27B0'}));
+                f.position.set((Math.random()-0.5)*200, -9, (Math.random()-0.5)*200); f.rotation.x = Math.PI; garden.add(f);
+            }
+            group.add(garden);
+        }
+        if (inventory.includes('3')) { // Candle
+            const candles = new THREE.Group();
+            for(let i=0; i<12; i++) {
+                const angle = (i/12)*Math.PI*2;
+                const c = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1), new THREE.MeshStandardMaterial({color:'#fff'}));
+                c.position.set(Math.cos(angle)*15, -9.5, Math.sin(angle)*15); 
+                const flame = new THREE.PointLight('#FF6D00', 0.5, 5); flame.position.y = 1; c.add(flame); candles.add(c);
+            }
+            group.add(candles);
+        }
+        if (inventory.includes('6')) { // Ring
+           const ring = new THREE.Mesh(new THREE.TorusGeometry(60, 1, 16, 100), goldMat);
+           ring.rotation.x = Math.PI/2; ring.position.y = 40; group.add(ring);
+        }
+
       return group;
     };
 
@@ -321,14 +382,27 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
         const z = Math.sin(angle) * radius;
         
         const color = getEmotionColor(mem.emotions);
-        const mesh = new THREE.Mesh(
-            new THREE.BoxGeometry(3, 4, 0.2), 
-            new THREE.MeshStandardMaterial({ color: color, emissive: color, emissiveIntensity: 0.5 })
-        );
-        mesh.position.set(x, 0, z);
-        mesh.lookAt(0, 0, 0);
-        scene.add(mesh);
+        const frame = new THREE.Group();
+        frame.position.set(x, 5 + Math.random() * 5, z);
+        frame.lookAt(0, 5, 0);
+
+        const box = new THREE.Mesh(new THREE.BoxGeometry(8, 10, 0.5), new THREE.MeshStandardMaterial({ color: 0x111111 }));
+        frame.add(box);
+        const border = new THREE.Mesh(new THREE.BoxGeometry(8.2, 10.2, 0.4), new THREE.MeshBasicMaterial({ color: color }));
+        frame.add(border);
+        
+        box.userData = { id: mem.id, type: 'memory' };
+        artifactsRef.current.push(box);
+        scene.add(frame);
     });
+
+    // --- CHARACTER ---
+    const character = new THREE.Group();
+    character.position.set(0, -10, 60);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(1.5), new THREE.MeshStandardMaterial({map:faceTex})); head.position.y=5; character.add(head);
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 3.5), new THREE.MeshStandardMaterial({color:'#9D8EFF'})); body.position.y=2.5; character.add(body);
+    scene.add(character);
+    characterRef.current = character;
 
     // Lights
     const ambientLight = new THREE.AmbientLight(themeConfig.lightColor, themeConfig.lightIntensity);
@@ -337,31 +411,94 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
     dirLight.position.set(50, 100, 50);
     scene.add(dirLight);
 
-    // Loop
+    // --- ANIMATION LOOP (RESTORED INTERACTIVE) ---
+    const clock = new THREE.Clock();
     const animate = () => {
         reqRef.current = requestAnimationFrame(animate);
-        cameraAngle.current.theta += 0.0005;
-        camera.position.x = 80 * Math.sin(cameraAngle.current.theta);
-        camera.position.z = 80 * Math.cos(cameraAngle.current.theta);
-        camera.position.y = 30;
-        camera.lookAt(0, 0, 0);
-        renderer.render(scene, camera);
+        const delta = clock.getDelta();
+        
+        // Ensure character and camera exist
+        if (characterRef.current && cameraRef.current) {
+            const speed = 30 * delta;
+            const rotSpeed = 2 * delta;
+
+            // Character Movement (Arrow Keys)
+            if (keysPressed.current['ArrowUp']) characterRef.current.translateZ(-speed);
+            if (keysPressed.current['ArrowDown']) characterRef.current.translateZ(speed);
+            if (keysPressed.current['ArrowLeft']) characterRef.current.rotateY(rotSpeed);
+            if (keysPressed.current['ArrowRight']) characterRef.current.rotateY(-rotSpeed);
+            
+            // Camera Orbit (ZQSD / WASD)
+            if (keysPressed.current['KeyQ'] || keysPressed.current['KeyA']) cameraAngle.current.theta += rotSpeed;
+            if (keysPressed.current['KeyD']) cameraAngle.current.theta -= rotSpeed;
+            if (keysPressed.current['KeyZ'] || keysPressed.current['KeyW']) cameraAngle.current.phi = Math.max(0.1, cameraAngle.current.phi - rotSpeed);
+            if (keysPressed.current['KeyS']) cameraAngle.current.phi = Math.min(Math.PI - 0.1, cameraAngle.current.phi + rotSpeed);
+
+            // Calculate Camera Position relative to Character
+            const dist = 20;
+            const camX = dist * Math.sin(cameraAngle.current.phi) * Math.sin(cameraAngle.current.theta);
+            const camY = dist * Math.cos(cameraAngle.current.phi);
+            const camZ = dist * Math.sin(cameraAngle.current.phi) * Math.cos(cameraAngle.current.theta);
+
+            cameraRef.current.position.set(
+                characterRef.current.position.x + camX, 
+                characterRef.current.position.y + camY + 5, 
+                characterRef.current.position.z + camZ
+            );
+            cameraRef.current.lookAt(
+                characterRef.current.position.x, 
+                characterRef.current.position.y + 5, 
+                characterRef.current.position.z
+            );
+        }
+        
+        rendererRef.current?.render(sceneRef.current!, cameraRef.current!);
     };
     animate();
 
     // Resize
     const handleResize = () => {
-        if (!mountRef.current) return;
+        if (!mountRef.current || !cameraRef.current || !rendererRef.current) return;
         const w = mountRef.current.clientWidth;
         const h = mountRef.current.clientHeight;
-        camera.aspect = w / h;
-        camera.updateProjectionMatrix();
-        renderer.setSize(w, h);
+        cameraRef.current.aspect = w / h;
+        cameraRef.current.updateProjectionMatrix();
+        rendererRef.current.setSize(w, h);
     };
     window.addEventListener('resize', handleResize);
 
+    // --- INPUT EVENTS ---
+    const handleKeyDown = (e: KeyboardEvent) => setInput(e.code, true);
+    const handleKeyUp = (e: KeyboardEvent) => setInput(e.code, false);
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    const handleClick = (e: MouseEvent) => {
+        if (!cameraRef.current || !sceneRef.current) return;
+        const rect = mountRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        
+        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        
+        raycaster.setFromCamera(mouse, cameraRef.current);
+        const intersects = raycaster.intersectObjects(artifactsRef.current);
+        if (intersects.length > 0) {
+            const id = intersects[0].object.userData.id;
+            const mem = memories.find(m => m.id === id);
+            if (mem) alert(`Memory: ${mem.content}\nEmotion: ${mem.emotions.join(', ')}`);
+        }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    // Bind click to the container specifically if possible, but window is safer for raycast mapping
+    window.addEventListener('mousedown', handleClick);
+
     return () => {
         window.removeEventListener('resize', handleResize);
+        window.removeEventListener('keydown', handleKeyDown);
+        window.removeEventListener('keyup', handleKeyUp);
+        window.removeEventListener('mousedown', handleClick);
         cancelAnimationFrame(reqRef.current);
         if (mountRef.current && renderer.domElement) {
             mountRef.current.removeChild(renderer.domElement);
