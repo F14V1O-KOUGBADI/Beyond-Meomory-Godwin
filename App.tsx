@@ -6,23 +6,21 @@ import Scene3D from './components/Scene3D';
 
 // --- MOCK DATA FOR SHOP ---
 const PRODUCTS: Product[] = [
-  { id: '1', title: 'Marble Mausoleum', category: 'Monuments', price: 0.5, rarity: 'Legendary', image: 'https://images.unsplash.com/photo-1564507592333-c60657eea523?auto=format&fit=crop&q=80&w=600' },
-  { id: '2', title: 'Eternal Garden', category: 'Univers', price: 0.2, rarity: 'Rare', image: 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&q=80&w=600' },
-  { id: '3', title: 'Digital Candle', category: 'Decorations', price: 0.05, rarity: 'Classic', image: 'https://images.unsplash.com/photo-1603006905003-be475563bc59?auto=format&fit=crop&q=80&w=600' },
-  { id: '4', title: 'Ancestral Statue', category: 'Monuments', price: 1.2, rarity: 'Immortal', image: 'https://images.unsplash.com/photo-1544531586-fde5298cdd40?auto=format&fit=crop&q=80&w=600' },
-  { id: '5', title: 'Nebula Skybox', category: 'Univers', price: 0.8, rarity: 'Legendary', image: 'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&q=80&w=600' },
-  { id: '6', title: 'Golden Ring', category: 'Decorations', price: 0.1, rarity: 'Classic', image: 'https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?auto=format&fit=crop&q=80&w=600' },
+  { id: '1', title: 'Marble Mausoleum', category: 'Monuments', price: 500, rarity: 'Legendary', image: 'https://images.unsplash.com/photo-1564507592333-c60657eea523?auto=format&fit=crop&q=80&w=600' },
+  { id: '2', title: 'Eternal Garden', category: 'Univers', price: 200, rarity: 'Rare', image: 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&q=80&w=600' },
+  { id: '3', title: 'Digital Candle', category: 'Decorations', price: 50, rarity: 'Classic', image: 'https://images.unsplash.com/photo-1603006905003-be475563bc59?auto=format&fit=crop&q=80&w=600' },
+  { id: '4', title: 'Ancestral Statue', category: 'Monuments', price: 1200, rarity: 'Immortal', image: 'https://images.unsplash.com/photo-1544531586-fde5298cdd40?auto=format&fit=crop&q=80&w=600' },
+  { id: '5', title: 'Nebula Skybox', category: 'Univers', price: 800, rarity: 'Legendary', image: 'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&q=80&w=600' },
+  { id: '6', title: 'Golden Ring', category: 'Decorations', price: 100, rarity: 'Classic', image: 'https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?auto=format&fit=crop&q=80&w=600' },
 ];
 
 export type OriginTheme = 'European' | 'African' | 'Asian';
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'home' | 'onboarding' | 'library' | 'shop' | 'advisor' | 'tokenomics' | 'metaverse'>('home');
-  const [isWalletConnected, setIsWalletConnected] = useState(false);
-  const [walletAddress, setWalletAddress] = useState('');
+  const [currentView, setCurrentView] = useState<'home' | 'onboarding' | 'library' | 'shop' | 'advisor' | 'statistics' | 'metaverse'>('home');
 
   // --- ECONOMY STATE ---
-  const [balance, setBalance] = useState(5.0); // Initial balance in ETH/MEME
+  const [balance, setBalance] = useState(2500); // Credits/Essence
   const [inventory, setInventory] = useState<string[]>([]); // Array of Product IDs
   const [equippedItemId, setEquippedItemId] = useState<string | null>(null); // For Monuments/Environments
 
@@ -58,18 +56,6 @@ const App: React.FC = () => {
           audioService.playNav();
           setCurrentView(view);
       }
-  };
-
-  const connectWallet = () => {
-    audioService.playClick();
-    if (!isWalletConnected) {
-      setIsWalletConnected(true);
-      setWalletAddress('0x71C...9A23');
-      audioService.playSuccess();
-    } else {
-      setIsWalletConnected(false);
-      setWalletAddress('');
-    }
   };
 
   const handleStartLegacyClick = () => {
@@ -188,7 +174,7 @@ const App: React.FC = () => {
       }
     } else {
       audioService.playError();
-      alert("Insufficient funds. Stake more tokens to earn rewards.");
+      alert("Insufficient Essence credits.");
     }
   };
 
@@ -300,7 +286,7 @@ const App: React.FC = () => {
 
           {/* Links */}
           <div className="hidden md:flex items-center space-x-8 text-sm font-medium tracking-wide text-slate-400">
-            {['Home', 'MyLibrary', 'Life-Shop', 'Legacy Advisor', 'Tokenomics'].map((item) => {
+            {['Home', 'MyLibrary', 'Life-Shop', 'Legacy Advisor', 'Statistics'].map((item) => {
                const viewKey = item.toLowerCase().replace(' ', '').replace('-', '') as any;
                const isActive = currentView === (viewKey === 'mylibrary' ? 'library' : viewKey === 'lifeshop' ? 'shop' : viewKey === 'legacyadvisor' ? 'advisor' : viewKey);
                return (
@@ -316,24 +302,13 @@ const App: React.FC = () => {
             })}
           </div>
 
-          {/* Wallet Button */}
-          <button 
-            onClick={connectWallet}
-            className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all border border-white/10 ${
-              isWalletConnected 
-                ? 'bg-gradient-to-r from-brand-purple/20 to-brand-pink/20 text-brand-pink border-brand-purple/50 shadow-[0_0_15px_rgba(157,142,255,0.2)]' 
-                : 'bg-white/5 hover:bg-white/10 text-white shadow-lg'
-            }`}
-          >
-            {isWalletConnected ? (
-              <span className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-brand-yellow animate-pulse"></span>
-                {walletAddress}
-              </span>
-            ) : (
-              "Connect Wallet"
-            )}
-          </button>
+          {/* Balance / Profile Button */}
+          <div className="px-6 py-2.5 rounded-lg text-sm font-bold bg-white/5 border border-white/10 text-white shadow-lg flex items-center gap-2">
+            <span className="text-brand-purple">{balance} Essence</span>
+            <div className="w-6 h-6 rounded-full bg-slate-700 overflow-hidden">
+               <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="avatar" />
+            </div>
+          </div>
         </div>
       </nav>
 
@@ -351,7 +326,7 @@ const App: React.FC = () => {
 
             <div className="relative z-10 max-w-5xl mx-auto text-center pt-24 px-6">
               <div className="inline-block mb-6 px-4 py-1 rounded-full border border-brand-purple/30 bg-brand-purple/10 text-brand-purple text-xs font-bold tracking-[0.2em] uppercase">
-                Web3 Legacy Protocol
+                Digital Legacy Protocol
               </div>
               <h1 className="font-serif text-6xl md:text-7xl lg:text-8xl font-medium leading-tight mb-8">
                 Your Story,<br/> 
@@ -360,7 +335,7 @@ const App: React.FC = () => {
                 </span>
               </h1>
               <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-12 font-light leading-relaxed">
-                BeyondMemories secures your most precious moments on the blockchain and brings them to life in an immersive Metaverse sanctuary.
+                BeyondMemories secures your most precious moments in a secure vault and brings them to life in an immersive Metaverse sanctuary.
               </p>
               
               <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
@@ -382,7 +357,7 @@ const App: React.FC = () => {
               {[
                 { title: 'Metaverse Sanctuary', desc: 'A persistent 3D world where your memories live as artifacts.', icon: '🏛️' },
                 { title: 'AI Guardian', desc: 'Gemini AI analyzes and organizes your legacy for future generations.', icon: '🤖' },
-                { title: 'Blockchain Security', desc: 'Immutable storage ensures your story can never be deleted.', icon: '⛓️' }
+                { title: 'Secure Cloud Storage', desc: 'Encrypted storage ensures your story is safe and private.', icon: '☁️' }
               ].map((card, idx) => (
                 <div key={idx} className="bg-white/5 border border-white/10 backdrop-blur-md p-8 rounded-2xl hover:bg-white/10 transition-colors group">
                   <div className="text-4xl mb-4 group-hover:scale-110 transition-transform duration-300 grayscale group-hover:grayscale-0">{card.icon}</div>
@@ -459,7 +434,7 @@ const App: React.FC = () => {
                       disabled={!uploadDesc || isAnalyzing}
                       className="w-full py-4 mt-4 bg-gradient-to-r from-brand-purple to-brand-pink text-black font-bold rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(157,142,255,0.3)]"
                    >
-                      {isAnalyzing ? "Encrypting into Blockchain..." : "Preserve Memory Forever"}
+                      {isAnalyzing ? "Saving to Vault..." : "Preserve Memory Forever"}
                    </button>
                 </div>
              </div>
@@ -476,8 +451,8 @@ const App: React.FC = () => {
                     equippedItemId={equippedItemId}
                  /> 
                  <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/50 text-xs text-center pointer-events-none z-10">
-                    Use <span className="font-bold text-brand-yellow">ZQSD</span> or <span className="font-bold text-brand-yellow">Arrows</span> to explore.<br/>
-                    Click on floating memories to zoom.
+                    Use <span className="font-bold text-brand-yellow">ZQSD / WASD / Arrows</span> to walk.<br/>
+                    Camera follows you automatically. Click memories to zoom.
                  </div>
                  <div className="absolute top-8 right-8 text-white/30 text-xs text-right pointer-events-none z-10">
                     Theme: <span className="font-bold text-white">
@@ -616,7 +591,7 @@ const App: React.FC = () => {
                
                <div className="p-4 bg-brand-yellow/10 rounded-xl border border-brand-yellow/20">
                   <p className="text-xs text-slate-500 font-medium mb-1">Your Balance</p>
-                  <p className="text-xl font-bold text-brand-purple">{balance.toFixed(2)} MEME</p>
+                  <p className="text-xl font-bold text-brand-purple">{balance.toFixed(0)} Essence</p>
                </div>
              </div>
 
@@ -649,7 +624,7 @@ const App: React.FC = () => {
                           <p className="text-xs text-slate-400 mb-1">{product.category}</p>
                           <h4 className="font-serif text-lg font-bold text-slate-800 mb-3">{product.title}</h4>
                           <div className="flex items-center justify-between">
-                             <span className="font-bold text-brand-purple">{product.price} MEME</span>
+                             <span className="font-bold text-brand-purple">{product.price} Credits</span>
                              <button 
                                onClick={() => handlePurchase(product)}
                                disabled={(!isOwned && balance < product.price)}
@@ -737,17 +712,17 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* ================= TOKENOMICS VIEW ================= */}
-        {currentView === 'tokenomics' && (
+        {/* ================= STATISTICS VIEW (EX TOKENOMICS) ================= */}
+        {currentView === 'statistics' && (
           <div className="bg-brand-black min-h-[calc(100vh-80px)] text-white p-6 md:p-12 animate-fade-in">
              <div className="max-w-6xl mx-auto">
-               <h2 className="font-serif text-4xl mb-12 border-b border-white/10 pb-6 text-brand-pink">Protocol Statistics</h2>
+               <h2 className="font-serif text-4xl mb-12 border-b border-white/10 pb-6 text-brand-pink">Community Statistics</h2>
                
                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
                  
                  {/* PIE CHART */}
                  <div className="bg-brand-surface p-8 rounded-2xl border border-white/5">
-                   <h3 className="text-lg font-bold text-slate-300 mb-8">Token Distribution</h3>
+                   <h3 className="text-lg font-bold text-slate-300 mb-8">Memory Distribution</h3>
                    <div className="flex flex-col md:flex-row items-center gap-12">
                       <div className="relative w-64 h-64 rounded-full shadow-[0_0_50px_rgba(157,142,255,0.2)]"
                            style={{
@@ -759,21 +734,21 @@ const App: React.FC = () => {
                              )`
                            }}>
                          <div className="absolute inset-4 bg-brand-surface rounded-full flex items-center justify-center">
-                           <span className="font-serif text-2xl font-bold">100M</span>
+                           <span className="font-serif text-2xl font-bold">10K+</span>
                          </div>
                       </div>
                       <div className="space-y-4">
-                        <div className="flex items-center gap-3"><span className="w-3 h-3 bg-brand-purple rounded-full"></span><span>Community (40%)</span></div>
-                        <div className="flex items-center gap-3"><span className="w-3 h-3 bg-brand-yellow rounded-full"></span><span>Staking Rewards (25%)</span></div>
-                        <div className="flex items-center gap-3"><span className="w-3 h-3 bg-brand-pink rounded-full"></span><span>Development (20%)</span></div>
-                        <div className="flex items-center gap-3"><span className="w-3 h-3 bg-white rounded-full"></span><span>Liquidity (15%)</span></div>
+                        <div className="flex items-center gap-3"><span className="w-3 h-3 bg-brand-purple rounded-full"></span><span>Happy Memories (40%)</span></div>
+                        <div className="flex items-center gap-3"><span className="w-3 h-3 bg-brand-yellow rounded-full"></span><span>Family (25%)</span></div>
+                        <div className="flex items-center gap-3"><span className="w-3 h-3 bg-brand-pink rounded-full"></span><span>Milestones (20%)</span></div>
+                        <div className="flex items-center gap-3"><span className="w-3 h-3 bg-white rounded-full"></span><span>Travel (15%)</span></div>
                       </div>
                    </div>
                  </div>
 
                  {/* BAR CHART */}
                  <div className="bg-brand-surface p-8 rounded-2xl border border-white/5 flex flex-col">
-                    <h3 className="text-lg font-bold text-slate-300 mb-8">Staking APY Forecast</h3>
+                    <h3 className="text-lg font-bold text-slate-300 mb-8">Legacy Growth (Years)</h3>
                     <div className="flex-1 flex items-end justify-between gap-4 px-4 pb-4 border-b border-white/10">
                         {[85, 65, 45, 30, 15].map((h, i) => (
                           <div key={i} className="w-full relative group">
@@ -781,7 +756,6 @@ const App: React.FC = () => {
                               style={{height: `${h}%`}} 
                               className="w-full bg-gradient-to-t from-brand-purple/20 to-brand-purple rounded-t-sm group-hover:to-brand-yellow transition-all cursor-pointer relative"
                             >
-                              <span className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 text-xs font-bold transition-opacity text-brand-yellow">{h}%</span>
                             </div>
                             <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs text-slate-500">Year {i+1}</span>
                           </div>
@@ -789,24 +763,6 @@ const App: React.FC = () => {
                     </div>
                  </div>
                </div>
-
-               {/* CTA */}
-               <div className="mt-12 bg-gradient-to-r from-brand-purple via-brand-pink to-brand-yellow rounded-2xl p-1 text-center relative overflow-hidden">
-                 <div className="bg-black h-full w-full rounded-xl p-12 relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-brand-purple/20 via-brand-pink/20 to-brand-yellow/20 opacity-30"></div>
-                    <div className="relative z-10">
-                        <h3 className="font-serif text-3xl font-bold mb-4 text-white">Secure Your Legacy Today</h3>
-                        <p className="max-w-xl mx-auto mb-8 text-slate-400">Invest in the eternity of your memories. Stakers receive premium Metaverse plots.</p>
-                        <button 
-                            className="px-8 py-3 bg-white text-black font-bold rounded-full hover:bg-brand-yellow transition-colors shadow-[0_0_20px_rgba(255,255,255,0.3)]"
-                            onClick={() => { audioService.playClick(); alert('Redirecting to Exchange...'); }}
-                        >
-                        Buy $MEME Token
-                        </button>
-                    </div>
-                 </div>
-               </div>
-
              </div>
           </div>
         )}

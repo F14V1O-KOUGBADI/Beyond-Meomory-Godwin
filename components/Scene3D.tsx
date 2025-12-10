@@ -23,7 +23,11 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
   const keysPressed = useRef<{ [key: string]: boolean }>({});
 
   // Interaction state
-  const cameraAngle = useRef({ theta: Math.PI / 2, phi: Math.PI / 2.5 });
+  // Initial camera angle (Spherical coordinates)
+  const cameraAngle = useRef({ 
+      theta: Math.PI / 2, // Horizontal angle
+      phi: Math.PI / 2.5  // Vertical angle
+  });
   
   // Audio State
   const [isPlaying, setIsPlaying] = useState(false);
@@ -33,7 +37,7 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
   const LIBRARY_POS = { x: 0, z: 0 };
 
   useEffect(() => {
-    // Audio Init - Classical Piano
+    // Audio Init
     const url = "https://cdn.pixabay.com/audio/2022/05/27/audio_1808fbf07a.mp3";
     const audio = new Audio(url);
     audio.loop = true;
@@ -143,6 +147,8 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
     rendererRef.current = renderer;
 
     // --- TEXTURES ---
+    const textureLoader = new THREE.TextureLoader();
+    
     const createTexture = (color1: string, color2: string, size = 512, type = 'check') => {
         const canvas = document.createElement('canvas');
         canvas.width = size; canvas.height = size;
@@ -386,7 +392,16 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
         frame.position.set(x, 5 + Math.random() * 5, z);
         frame.lookAt(0, 5, 0);
 
-        const box = new THREE.Mesh(new THREE.BoxGeometry(8, 10, 0.5), new THREE.MeshStandardMaterial({ color: 0x111111 }));
+        let boxMat;
+        if (mem.image) {
+            const texture = textureLoader.load(mem.image);
+            texture.colorSpace = THREE.SRGBColorSpace;
+            boxMat = new THREE.MeshBasicMaterial({ map: texture });
+        } else {
+            boxMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+        }
+
+        const box = new THREE.Mesh(new THREE.BoxGeometry(8, 10, 0.5), boxMat);
         frame.add(box);
         const border = new THREE.Mesh(new THREE.BoxGeometry(8.2, 10.2, 0.4), new THREE.MeshBasicMaterial({ color: color }));
         frame.add(border);
@@ -411,52 +426,82 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
     dirLight.position.set(50, 100, 50);
     scene.add(dirLight);
 
-    // --- ANIMATION LOOP (RESTORED INTERACTIVE) ---
+    // --- ANIMATION LOOP (CAMERA-RELATIVE MOVEMENT) ---
     const clock = new THREE.Clock();
     const animate = () => {
         reqRef.current = requestAnimationFrame(animate);
         const delta = clock.getDelta();
         
-        // Ensure character and camera exist
         if (characterRef.current && cameraRef.current) {
-            const speed = 30 * delta;
+            const moveSpeed = 40 * delta;
             const rotSpeed = 2 * delta;
-
-            // Character Movement (Arrow Keys)
-            if (keysPressed.current['ArrowUp']) characterRef.current.translateZ(-speed);
-            if (keysPressed.current['ArrowDown']) characterRef.current.translateZ(speed);
-            if (keysPressed.current['ArrowLeft']) characterRef.current.rotateY(rotSpeed);
-            if (keysPressed.current['ArrowRight']) characterRef.current.rotateY(-rotSpeed);
             
-            // Camera Orbit (ZQSD / WASD)
+            // 1. Determine Camera Forward Direction (Projected on XZ plane)
+            // Note: Camera orientation now controlled purely by user, not character
+            const camDir = new THREE.Vector3();
+            cameraRef.current.getWorldDirection(camDir);
+            camDir.y = 0; // Flatten trajectory
+            camDir.normalize();
+
+            // 2. Determine Camera Right Direction
+            const camRight = new THREE.Vector3(-camDir.z, 0, camDir.x);
+
+            // 3. Calculate Movement Vector based on Arrow Keys (Character Move)
+            const moveVec = new THREE.Vector3(0, 0, 0);
+            const isUp = keysPressed.current['ArrowUp'];
+            const isDown = keysPressed.current['ArrowDown'];
+            const isLeft = keysPressed.current['ArrowLeft'];
+            const isRight = keysPressed.current['ArrowRight'];
+
+            if (isUp) moveVec.add(camDir);
+            if (isDown) moveVec.sub(camDir);
+            if (isRight) moveVec.add(camRight);
+            if (isLeft) moveVec.sub(camRight);
+
+            // 4. Apply Character Movement
+            if (moveVec.lengthSq() > 0) {
+                moveVec.normalize().multiplyScalar(moveSpeed);
+                characterRef.current.position.add(moveVec);
+                
+                // Rotate Character to face movement
+                const targetAngle = Math.atan2(moveVec.x, moveVec.z);
+                const currentRot = characterRef.current.rotation.y;
+                let diff = targetAngle - currentRot;
+                while (diff > Math.PI) diff -= Math.PI * 2;
+                while (diff < -Math.PI) diff += Math.PI * 2;
+                characterRef.current.rotation.y += diff * 0.1; 
+            }
+
+            // 5. Update Camera Angles (ZQSD/WASD Control - Orbit)
+            // Z/S = Zoom (Radius) or Pitch (Phi) ? Let's do Pitch/Height
+            // Q/D = Rotate (Theta)
             if (keysPressed.current['KeyQ'] || keysPressed.current['KeyA']) cameraAngle.current.theta += rotSpeed;
             if (keysPressed.current['KeyD']) cameraAngle.current.theta -= rotSpeed;
             if (keysPressed.current['KeyZ'] || keysPressed.current['KeyW']) cameraAngle.current.phi = Math.max(0.1, cameraAngle.current.phi - rotSpeed);
             if (keysPressed.current['KeyS']) cameraAngle.current.phi = Math.min(Math.PI - 0.1, cameraAngle.current.phi + rotSpeed);
 
-            // Calculate Camera Position relative to Character
-            const dist = 20;
-            const camX = dist * Math.sin(cameraAngle.current.phi) * Math.sin(cameraAngle.current.theta);
-            const camY = dist * Math.cos(cameraAngle.current.phi);
-            const camZ = dist * Math.sin(cameraAngle.current.phi) * Math.cos(cameraAngle.current.theta);
-
+            // 6. Camera Position (Chase Logic BUT NO AUTO ROTATION)
+            // The camera follows the character's POSITION, but its ROTATION is strictly defined by cameraAngle refs
+            const targetPos = characterRef.current.position.clone();
+            targetPos.y += 5; // Look at head height
+            
+            const dist = 20; // Fixed distance or variable? Let's use fixed radius for simplicity
+            const offsetX = dist * Math.sin(cameraAngle.current.phi) * Math.sin(cameraAngle.current.theta);
+            const offsetY = dist * Math.cos(cameraAngle.current.phi);
+            const offsetZ = dist * Math.sin(cameraAngle.current.phi) * Math.cos(cameraAngle.current.theta);
+            
             cameraRef.current.position.set(
-                characterRef.current.position.x + camX, 
-                characterRef.current.position.y + camY + 5, 
-                characterRef.current.position.z + camZ
+                targetPos.x + offsetX,
+                targetPos.y + offsetY,
+                targetPos.z + offsetZ
             );
-            cameraRef.current.lookAt(
-                characterRef.current.position.x, 
-                characterRef.current.position.y + 5, 
-                characterRef.current.position.z
-            );
+            cameraRef.current.lookAt(targetPos);
         }
         
         rendererRef.current?.render(sceneRef.current!, cameraRef.current!);
     };
     animate();
 
-    // Resize
     const handleResize = () => {
         if (!mountRef.current || !cameraRef.current || !rendererRef.current) return;
         const w = mountRef.current.clientWidth;
@@ -467,19 +512,18 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
     };
     window.addEventListener('resize', handleResize);
 
-    // --- INPUT EVENTS ---
     const handleKeyDown = (e: KeyboardEvent) => setInput(e.code, true);
     const handleKeyUp = (e: KeyboardEvent) => setInput(e.code, false);
+    
+    // RAYCASTER CLICK
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
     const handleClick = (e: MouseEvent) => {
         if (!cameraRef.current || !sceneRef.current) return;
         const rect = mountRef.current?.getBoundingClientRect();
         if (!rect) return;
-        
         mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
         mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-        
         raycaster.setFromCamera(mouse, cameraRef.current);
         const intersects = raycaster.intersectObjects(artifactsRef.current);
         if (intersects.length > 0) {
@@ -491,7 +535,6 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
-    // Bind click to the container specifically if possible, but window is safer for raycast mapping
     window.addEventListener('mousedown', handleClick);
 
     return () => {
