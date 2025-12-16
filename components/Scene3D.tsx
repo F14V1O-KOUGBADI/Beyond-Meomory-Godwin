@@ -159,6 +159,28 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
     return 0x00B0FF; 
   };
 
+  // --- EFFECT: Handle Video Texture Playback on Focus ---
+  // We keep the texture video muted and play/pause it based on focus.
+  // The Overlay will handle the audible playback.
+  useEffect(() => {
+    // 1. Pause all videos initially
+    artifactsRef.current.forEach(g => {
+        const video = g.userData.videoElement as HTMLVideoElement | undefined;
+        if (video) {
+            video.pause();
+        }
+    });
+
+    // 2. Play focused video (muted) to animate the 3D texture
+    if (focusedMemory && focusedMemory.video) {
+        const targetGroup = artifactsRef.current.find(obj => obj.userData.id === focusedMemory.id);
+        if (targetGroup && targetGroup.userData.videoElement) {
+             const video = targetGroup.userData.videoElement as HTMLVideoElement;
+             video.play().catch(e => console.log("Texture video play failed", e));
+        }
+    }
+  }, [focusedMemory]);
+
   useEffect(() => {
     if (!mountRef.current) return;
 
@@ -438,7 +460,25 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
         frame.add(memoryMeshGroup);
 
         let boxMat;
-        if (mem.image) {
+        let videoEl: HTMLVideoElement | null = null;
+
+        if (mem.video) {
+            videoEl = document.createElement('video');
+            videoEl.src = mem.video;
+            videoEl.crossOrigin = "anonymous";
+            videoEl.loop = true;
+            videoEl.muted = true; // Muted for 3D texture loop
+            videoEl.playsInline = true;
+            // Attempt to load to get a frame
+            videoEl.load();
+            videoEl.currentTime = 0.1;
+
+            const vidTex = new THREE.VideoTexture(videoEl);
+            vidTex.colorSpace = THREE.SRGBColorSpace;
+            vidTex.minFilter = THREE.LinearFilter;
+            vidTex.magFilter = THREE.LinearFilter;
+            boxMat = new THREE.MeshBasicMaterial({ map: vidTex });
+        } else if (mem.image) {
             const texture = textureLoader.load(mem.image);
             texture.colorSpace = THREE.SRGBColorSpace;
             boxMat = new THREE.MeshBasicMaterial({ map: texture });
@@ -457,7 +497,8 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
             id: mem.id, 
             type: 'memory', 
             // We use 0 as base for local animation, actual Y offset is handled by parent frame
-            phase: Math.random() * Math.PI * 2 
+            phase: Math.random() * Math.PI * 2,
+            videoElement: videoEl
         };
         
         // We push the inner group to artifacts so we animate IT, not the frame
@@ -676,17 +717,26 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
                     {/* Close Button */}
                     <button 
                         onClick={handleCloseFocus}
-                        className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white"
+                        className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white z-50"
                     >
                         ✕
                     </button>
 
-                    {/* Image */}
-                    {focusedMemory.image && (
+                    {/* Media Display */}
+                    {focusedMemory.video ? (
+                        <div className="w-full md:w-1/2 h-64 rounded-xl overflow-hidden shadow-lg border border-white/5 bg-black">
+                            <video 
+                                src={focusedMemory.video} 
+                                className="w-full h-full object-contain" 
+                                controls 
+                                autoPlay
+                            />
+                        </div>
+                    ) : focusedMemory.image ? (
                         <div className="w-full md:w-1/2 h-64 rounded-xl overflow-hidden shadow-lg border border-white/5">
                             <img src={focusedMemory.image} alt="Memory" className="w-full h-full object-cover" />
                         </div>
-                    )}
+                    ) : null}
 
                     {/* Content */}
                     <div className="flex-1 text-left">

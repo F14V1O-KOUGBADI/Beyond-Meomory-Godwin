@@ -5,6 +5,7 @@ export interface Memory {
   emotions: string[];
   themes: string[];
   image?: string; // URL de l'image uploadée
+  video?: string; // URL de la vidéo uploadée
   ageAtMoment?: string; // Age sur la photo
 }
 

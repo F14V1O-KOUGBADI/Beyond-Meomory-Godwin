@@ -43,11 +43,13 @@ const App: React.FC = () => {
   const [uploadAge, setUploadAge] = useState('');
   const [uploadDesc, setUploadDesc] = useState('');
   const [uploadImage, setUploadImage] = useState<string | null>(null);
+  const [uploadVideo, setUploadVideo] = useState<string | null>(null);
 
   // --- LIBRARY STATE ---
   const [memories, setMemories] = useState<Memory[]>([]);
   const [memoryInput, setMemoryInput] = useState('');
   const [libraryImage, setLibraryImage] = useState<string | null>(null);
+  const [libraryVideo, setLibraryVideo] = useState<string | null>(null);
   const [libraryAge, setLibraryAge] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
@@ -95,23 +97,31 @@ const App: React.FC = () => {
     setCurrentView('onboarding'); 
   };
 
-  // Handle Image Upload for Onboarding
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Generic Media Upload Handler
+  const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>, context: 'onboarding' | 'library') => {
     if (e.target.files && e.target.files[0]) {
       audioService.playClick();
       const file = e.target.files[0];
-      const imageUrl = URL.createObjectURL(file);
-      setUploadImage(imageUrl);
-    }
-  };
+      const mediaUrl = URL.createObjectURL(file);
+      const isVideo = file.type.startsWith('video/');
 
-  // Handle Image Upload for Library
-  const handleLibraryImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      audioService.playClick();
-      const file = e.target.files[0];
-      const imageUrl = URL.createObjectURL(file);
-      setLibraryImage(imageUrl);
+      if (context === 'onboarding') {
+          if (isVideo) {
+            setUploadVideo(mediaUrl);
+            setUploadImage(null);
+          } else {
+            setUploadImage(mediaUrl);
+            setUploadVideo(null);
+          }
+      } else {
+          if (isVideo) {
+            setLibraryVideo(mediaUrl);
+            setLibraryImage(null);
+          } else {
+            setLibraryImage(mediaUrl);
+            setLibraryVideo(null);
+          }
+      }
     }
   };
 
@@ -130,6 +140,7 @@ const App: React.FC = () => {
       emotions,
       themes,
       image: uploadImage || undefined,
+      video: uploadVideo || undefined,
       ageAtMoment: uploadAge
     };
 
@@ -139,6 +150,7 @@ const App: React.FC = () => {
     setUploadAge('');
     setUploadDesc('');
     setUploadImage(null);
+    setUploadVideo(null);
     setIsAnalyzing(false);
     audioService.playSuccess();
     setCurrentView('library');
@@ -158,12 +170,14 @@ const App: React.FC = () => {
       emotions,
       themes,
       image: libraryImage || undefined,
+      video: libraryVideo || undefined,
       ageAtMoment: libraryAge
     };
 
     setMemories([newMemory, ...memories]);
     setMemoryInput('');
     setLibraryImage(null);
+    setLibraryVideo(null);
     setLibraryAge('');
     setIsAnalyzing(false);
     audioService.playSuccess();
@@ -489,18 +503,20 @@ const App: React.FC = () => {
                 </div>
 
                 <div className="space-y-6">
-                   {/* 1. Photo Upload */}
+                   {/* 1. Photo/Video Upload */}
                    <div className="flex flex-col items-center justify-center">
                       <div className="w-full h-64 border-2 border-dashed border-white/20 rounded-xl flex flex-col items-center justify-center hover:bg-white/5 transition-colors cursor-pointer relative overflow-hidden bg-black/50">
-                          {uploadImage ? (
+                          {uploadVideo ? (
+                              <video src={uploadVideo} className="w-full h-full object-contain" controls />
+                          ) : uploadImage ? (
                             <img src={uploadImage} alt="Preview" className="w-full h-full object-contain" />
                           ) : (
                             <>
                               <span className="text-4xl mb-2">📸</span>
-                              <span className="text-sm text-slate-400">Click to upload a photograph</span>
+                              <span className="text-sm text-slate-400">Click to upload photo or video</span>
                             </>
                           )}
-                          <input type="file" accept="image/*" onChange={handleImageUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                          <input type="file" accept="image/*,video/*" onChange={(e) => handleMediaUpload(e, 'onboarding')} className="absolute inset-0 opacity-0 cursor-pointer" />
                       </div>
                    </div>
 
@@ -573,16 +589,18 @@ const App: React.FC = () => {
                   <h3 className="text-sm font-bold text-brand-purple uppercase tracking-widest mb-4">New Entry</h3>
                   <p className="text-slate-500 mb-6 text-sm">Describe a moment you wish to freeze in time. Our AI will analyze its emotional core.</p>
                   
-                  {/* Library Image Upload */}
+                  {/* Library Media Upload */}
                   <div className="mb-4">
-                     <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Photo (Optional)</label>
+                     <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Media (Optional)</label>
                      <div className="relative w-full h-32 border-2 border-dashed border-slate-300 rounded-lg overflow-hidden bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors cursor-pointer">
-                        {libraryImage ? (
+                        {libraryVideo ? (
+                          <video src={libraryVideo} className="w-full h-full object-cover" controls />
+                        ) : libraryImage ? (
                           <img src={libraryImage} alt="Preview" className="w-full h-full object-cover" />
                         ) : (
-                          <span className="text-slate-400 text-xs">Click to upload image</span>
+                          <span className="text-slate-400 text-xs">Click to upload photo/video</span>
                         )}
-                        <input type="file" accept="image/*" onChange={handleLibraryImageUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                        <input type="file" accept="image/*,video/*" onChange={(e) => handleMediaUpload(e, 'library')} className="absolute inset-0 opacity-0 cursor-pointer" />
                      </div>
                   </div>
 
@@ -631,10 +649,14 @@ const App: React.FC = () => {
                  ) : (
                    memories.map((mem) => (
                      <div key={mem.id} className="bg-slate-50 p-6 rounded-2xl shadow-sm hover:shadow-xl transition-shadow border border-slate-100 group flex flex-col md:flex-row gap-6">
-                        {/* Memory Image Display */}
-                        {mem.image && (
+                        {/* Memory Media Display */}
+                        {(mem.image || mem.video) && (
                           <div className="w-full md:w-32 h-32 flex-shrink-0 rounded-lg overflow-hidden bg-slate-200 relative">
-                             <img src={mem.image} alt="Memory" className="w-full h-full object-cover" />
+                             {mem.video ? (
+                                <video src={mem.video} className="w-full h-full object-cover" />
+                             ) : (
+                                <img src={mem.image} alt="Memory" className="w-full h-full object-cover" />
+                             )}
                              {mem.ageAtMoment && (
                                <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] text-center py-1 font-bold">
                                  Age: {mem.ageAtMoment}
