@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { analyzeMemory, askLegacyAdvisor } from './services/geminiService';
 import { audioService } from './services/audioService';
-import { Memory, ChatMessage, Product } from './types';
+import { Memory, ChatMessage, Product, OriginTheme } from './types';
 import Scene3D from './components/Scene3D';
 
 // --- MOCK DATA FOR SHOP ---
@@ -20,8 +20,6 @@ const VISITOR_MEMORIES: Memory[] = [
   { id: 'v2', content: "Our first trip to Kyoto. The golden pavilion reflected in the water perfectly.", date: "April 04, 2005", emotions: ["Awe", "Peace"], themes: ["Travel", "Love"], image: "https://images.unsplash.com/photo-1545569341-9eb8b30979d9?auto=format&fit=crop&q=80&w=600", ageAtMoment: "29" },
   { id: 'v3', content: "Buying the old house on the hill. It needed work, but it was ours.", date: "Sept 15, 2010", emotions: ["Hope", "Determination"], themes: ["Home", "Building"], ageAtMoment: "34" }
 ];
-
-export type OriginTheme = 'European' | 'African' | 'Asian';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'home' | 'onboarding' | 'library' | 'shop' | 'advisor' | 'statistics' | 'metaverse'>('home');
@@ -301,7 +299,7 @@ const App: React.FC = () => {
       {/* --- ORIGIN SELECTION MODAL (Only if not visitor) --- */}
       {showOriginModal && !isVisitor && (
         <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-6 animate-fade-in">
-          <div className="max-w-5xl w-full bg-brand-surface border border-brand-purple/20 rounded-2xl p-8 md:p-12 relative overflow-hidden">
+          <div className="max-w-7xl w-full bg-brand-surface border border-brand-purple/20 rounded-2xl p-8 md:p-12 relative overflow-hidden">
             {/* Background decoration */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-brand-purple/10 rounded-full blur-[80px]"></div>
             
@@ -310,7 +308,7 @@ const App: React.FC = () => {
               Your heritage shapes your digital sanctuary. Select your origin to customize your Metaverse architecture.
             </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* African Card */}
               <button 
                 onClick={() => handleOriginSelection('African')}
@@ -319,8 +317,8 @@ const App: React.FC = () => {
               >
                 <img src="https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?q=80&w=800&auto=format&fit=crop" alt="African" className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-90 transition-opacity duration-700" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
-                <div className="absolute bottom-0 left-0 p-8 text-left w-full">
-                  <h3 className="text-3xl font-serif text-brand-yellow mb-2">African</h3>
+                <div className="absolute bottom-0 left-0 p-6 text-left w-full">
+                  <h3 className="text-2xl font-serif text-brand-yellow mb-2">African</h3>
                   <p className="text-xs text-slate-300 font-medium tracking-widest uppercase">Warmth, Earth, & Gold</p>
                   <p className="mt-2 text-xs text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0 duration-500">
                     A sanctuary built from the eternal earth, bathed in golden sunset light.
@@ -336,8 +334,8 @@ const App: React.FC = () => {
               >
                 <img src="https://images.unsplash.com/photo-1552432552-06c0b3d6ee56?q=80&w=800&auto=format&fit=crop" alt="European" className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-90 transition-opacity duration-700" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
-                <div className="absolute bottom-0 left-0 p-8 text-left w-full">
-                  <h3 className="text-3xl font-serif text-brand-purple mb-2">European</h3>
+                <div className="absolute bottom-0 left-0 p-6 text-left w-full">
+                  <h3 className="text-2xl font-serif text-brand-purple mb-2">European</h3>
                   <p className="text-xs text-slate-300 font-medium tracking-widest uppercase">Marble, History, & Class</p>
                   <p className="mt-2 text-xs text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0 duration-500">
                     Grand halls of white marble and classic columns echoing through time.
@@ -353,11 +351,28 @@ const App: React.FC = () => {
               >
                 <img src="https://images.unsplash.com/photo-1528360983277-13d9b152c6d4?q=80&w=800&auto=format&fit=crop" alt="Asian" className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-90 transition-opacity duration-700" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
-                <div className="absolute bottom-0 left-0 p-8 text-left w-full">
-                  <h3 className="text-3xl font-serif text-brand-pink mb-2">Asian</h3>
+                <div className="absolute bottom-0 left-0 p-6 text-left w-full">
+                  <h3 className="text-2xl font-serif text-brand-pink mb-2">Asian</h3>
                   <p className="text-xs text-slate-300 font-medium tracking-widest uppercase">Zen, Nature, & Harmony</p>
                   <p className="mt-2 text-xs text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0 duration-500">
                     A peaceful retreat of red lacquer, jade, and whispering paper lanterns.
+                  </p>
+                </div>
+              </button>
+
+              {/* American Card */}
+              <button 
+                onClick={() => handleOriginSelection('American')}
+                onMouseEnter={() => audioService.playNav()}
+                className="group relative h-96 rounded-xl overflow-hidden border border-white/10 hover:border-cyan-400/50 transition-all hover:scale-105"
+              >
+                <img src="https://images.unsplash.com/photo-1496442226666-8d4a0e62e6e9?q=80&w=800&auto=format&fit=crop" alt="American" className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-90 transition-opacity duration-700" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
+                <div className="absolute bottom-0 left-0 p-6 text-left w-full">
+                  <h3 className="text-2xl font-serif text-cyan-400 mb-2">American</h3>
+                  <p className="text-xs text-slate-300 font-medium tracking-widest uppercase">Neon, Sky, & Ambition</p>
+                  <p className="mt-2 text-xs text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0 duration-500">
+                    A modern metropolis of glass and steel, reaching towards the stars.
                   </p>
                 </div>
               </button>
@@ -492,6 +507,7 @@ const App: React.FC = () => {
                  <img 
                     src={selectedTheme === 'African' ? 'https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?auto=format&fit=crop&q=80' : 
                          selectedTheme === 'Asian' ? 'https://images.unsplash.com/photo-1542640244-7e672d6bd4e8?auto=format&fit=crop&q=80' :
+                         selectedTheme === 'American' ? 'https://images.unsplash.com/photo-1496442226666-8d4a0e62e6e9?auto=format&fit=crop&q=80' :
                          'https://images.unsplash.com/photo-1548625361-12c62c2cb989?auto=format&fit=crop&q=80'}
                     className="w-full h-full object-cover blur-sm"
                     alt="Theme bg"

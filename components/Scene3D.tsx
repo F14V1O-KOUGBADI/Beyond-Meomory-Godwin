@@ -4,7 +4,7 @@ import { Memory } from '../types';
 
 interface Scene3DProps {
   memories: Memory[];
-  theme: 'European' | 'African' | 'Asian';
+  theme: 'European' | 'African' | 'Asian' | 'American';
   inventory: string[];
   equippedItemId: string | null;
   onRoomChange?: (room: 'library' | 'rotunda') => void;
@@ -57,7 +57,7 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
         audio.crossOrigin = "anonymous";
         audioRef.current = audio;
     } else {
-        // Change source if track changed
+        // Change source if track changed (though likely covered by cleanup destruction)
         if (audioRef.current.src !== currentSource) {
             audioRef.current.src = currentSource;
         }
@@ -90,8 +90,9 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
     tryPlay();
 
     return () => {
-      // Cleanup only on unmount
-      if (audioRef.current && !customAudioUrl) { // Keep playing if just switching tracks internally
+      // ALWAYS cleanup on unmount or change. 
+      // This prevents multiple audio tracks from playing simultaneously when switching songs or leaving the view.
+      if (audioRef.current) {
           audioRef.current.pause();
           audioRef.current.removeAttribute('src'); 
           audioRef.current.load();
@@ -122,9 +123,7 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
   const getThemeColors = () => {
     const hasNebula = inventory.includes('5');
     
-    if (equippedItemId === '1') { // Marble Mausoleum
-       return { bg: '#000000', fog: '#000000', floor: '#1a1a1a', floorAlt: '#000000', wall: '#1a1a1a', columnMain: '#424242', columnDetail: '#212121', lightColor: '#4fc3f7', lightIntensity: 0.3, sunColor: '#0288d1', sunIntensity: 0.5, skylight: '#000000' };
-    }
+    // Custom Items override
     if (equippedItemId === '4') { // Ancestral Statue
        return { bg: '#E0F7FA', fog: '#E0F7FA', floor: '#E0F7FA', floorAlt: '#E0F7FA', wall: '#ffffff', columnMain: '#ffffff', columnDetail: '#ffffff', lightColor: '#ffffff', lightIntensity: 1, sunColor: '#FFD700', sunIntensity: 2, skylight: '#ffffff' };
     }
@@ -136,18 +135,24 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
     }
 
     switch (theme) {
+      case 'American':
+        // Tent City / Desert Vibe
+        return {
+          bg: '#2c241b', fog: '#2c241b', floor: '#5c5248', floorAlt: '#4a4036', wall: '#8c7b6c', columnMain: '#5c5248', columnDetail: '#3d342b', lightColor: '#ffdca3', lightIntensity: 0.6, sunColor: '#ffaa00', sunIntensity: 1.2, skylight: '#4a90e2'
+        };
+      case 'European':
+        // Caen Memorial: Greys, Concrete, Green grass, Somber sky
+        return {
+          bg: '#cfd8dc', fog: '#cfd8dc', floor: '#4caf50', floorAlt: '#81c784', wall: '#eceff1', columnMain: '#b0bec5', columnDetail: '#78909c', lightColor: '#ffffff', lightIntensity: 0.8, sunColor: '#ffffff', sunIntensity: 0.9, skylight: '#eceff1'
+        };
       case 'African':
         return {
           bg: '#2E1A0F', fog: '#2E1A0F', floor: '#D4AF37', floorAlt: '#B8860B', wall: '#4E342E', columnMain: '#3E2723', columnDetail: '#FFAB00', lightColor: '#FF6D00', lightIntensity: 0.9, sunColor: '#FF9100', sunIntensity: 1.5, skylight: '#FFAB00' 
         };
       case 'Asian':
-        return {
-          bg: '#000806', fog: '#000806', floor: '#2e7d32', floorAlt: '#1b5e20', wall: '#212121', columnMain: '#B71C1C', columnDetail: '#FFD700', lightColor: '#FFCDD2', lightIntensity: 0.7, sunColor: '#FFEB3B', sunIntensity: 1.1, skylight: '#81C784'
-        };
-      case 'European':
       default:
         return {
-          bg: '#050A15', fog: '#050A15', floor: '#ECEFF1', floorAlt: '#CFD8DC', wall: '#263238', columnMain: '#FAFAFA', columnDetail: '#1A237E', lightColor: '#E3F2FD', lightIntensity: 0.5, sunColor: '#FFFFFF', sunIntensity: 1.2, skylight: '#90CAF9'
+          bg: '#000806', fog: '#000806', floor: '#2e7d32', floorAlt: '#1b5e20', wall: '#212121', columnMain: '#B71C1C', columnDetail: '#FFD700', lightColor: '#FFCDD2', lightIntensity: 0.7, sunColor: '#FFEB3B', sunIntensity: 1.1, skylight: '#81C784'
         };
     }
   };
@@ -232,6 +237,20 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
                   ctx.fillStyle = color2;
                   ctx.fillRect(Math.random()*size, Math.random()*size, 2, 2);
                }
+            } else if (type === 'asphalt') {
+                ctx.fillStyle = '#333';
+                ctx.fillRect(0,0,size,size);
+                for(let i=0;i<5000;i++) {
+                    ctx.fillStyle = '#444';
+                    ctx.fillRect(Math.random()*size, Math.random()*size, 1, 1);
+                }
+            } else if (type === 'concrete') {
+                ctx.fillStyle = '#cfd8dc';
+                ctx.fillRect(0,0,size,size);
+                 for(let i=0;i<10000;i++) {
+                    ctx.fillStyle = '#b0bec5';
+                    ctx.fillRect(Math.random()*size, Math.random()*size, 1, 1);
+                }
             }
         }
         const tex = new THREE.CanvasTexture(canvas);
@@ -239,9 +258,10 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
         return tex;
     };
 
-    const floorTex = createTexture(themeConfig.floor, themeConfig.floorAlt, 1024, theme === 'African' ? 'sand' : 'check'); 
+    const floorTex = createTexture(themeConfig.floor, themeConfig.floorAlt, 1024, theme === 'American' ? 'asphalt' : theme === 'African' ? 'sand' : 'check'); 
     floorTex.repeat.set(24, 24);
     const wallTex = createTexture(themeConfig.wall, themeConfig.bg, 512, 'noise');
+    const concreteTex = createTexture('#cfd8dc', '#b0bec5', 512, 'concrete');
     
     const faceCanvas = document.createElement('canvas');
     faceCanvas.width = 128; faceCanvas.height = 128;
@@ -255,8 +275,9 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
     }
     const faceTex = new THREE.CanvasTexture(faceCanvas);
 
-    const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, roughness: theme === 'African' ? 1 : 0.3 });
+    const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, roughness: theme === 'American' ? 0.9 : (theme === 'African' ? 1 : 0.3) });
     const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.9 });
+    const concreteMat = new THREE.MeshStandardMaterial({ map: concreteTex, roughness: 0.8 });
     const columnMainMat = new THREE.MeshStandardMaterial({ color: themeConfig.columnMain, roughness: 0.5 });
     const bambooMat = new THREE.MeshStandardMaterial({ color: '#689F38', roughness: 0.6 });
     const lacquerMat = new THREE.MeshStandardMaterial({ color: '#B71C1C', roughness: 0.2 });
@@ -265,6 +286,8 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
     const autumnLeafMat = new THREE.MeshStandardMaterial({ color: '#FF6F00', roughness: 0.8 });
     const blackboardMat = new THREE.MeshStandardMaterial({ color: '#263238', roughness: 0.8 });
     const neonMat = new THREE.MeshBasicMaterial({ color: '#00E5FF' });
+    const fabricMat = new THREE.MeshStandardMaterial({ color: '#e0e0e0', roughness: 1.0, side: THREE.DoubleSide });
+    const tarpMat = new THREE.MeshStandardMaterial({ color: '#1976D2', roughness: 0.6, side: THREE.DoubleSide });
 
     const createStylizedTree = (scale: number, hasLeaves: boolean, type: 'sapling'|'bush'|'tree'|'ancient'|'autumn'|'cherry') => {
         const grp = new THREE.Group();
@@ -295,19 +318,111 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
     };
 
     // --- SCENE GENERATORS ---
-    const createMausoleumScene = () => {
+    
+    // NEW: MEMORIAL DE CAEN (EUROPEAN)
+    const createCaenMemorial = () => {
         const group = new THREE.Group();
-        const floor = new THREE.Mesh(new THREE.CircleGeometry(120, 64), new THREE.MeshStandardMaterial({color:'#212121'}));
-        floor.rotation.x = -Math.PI / 2; floor.position.y = -10;
-        group.add(floor);
         
-        // Simple Mausoleum Pillars
-        for(let i=0; i<8; i++){
-            const angle = (i/8)*Math.PI*2;
-            const col = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 150, 16), new THREE.MeshStandardMaterial({color:'#616161'}));
-            col.position.set(Math.cos(angle)*80, 65, Math.sin(angle)*80);
-            group.add(col);
+        // Grass Plaza
+        const ground = new THREE.Mesh(new THREE.CircleGeometry(150, 64), new THREE.MeshStandardMaterial({ color: '#4caf50', roughness: 1 }));
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -10;
+        group.add(ground);
+
+        // Paved Walkway
+        const path = new THREE.Mesh(new THREE.PlaneGeometry(40, 300), concreteMat);
+        path.rotation.x = -Math.PI / 2;
+        path.position.set(0, -9.9, 50);
+        group.add(path);
+
+        // Main Building (Brutalist/Modern Block)
+        const building = new THREE.Mesh(new THREE.BoxGeometry(120, 40, 20), concreteMat);
+        building.position.set(0, 10, -50);
+        group.add(building);
+
+        // The "Fissure" (Entryway split)
+        const entrance = new THREE.Mesh(new THREE.BoxGeometry(20, 35, 21), new THREE.MeshStandardMaterial({color: '#263238'}));
+        entrance.position.set(0, 7.5, -50);
+        group.add(entrance);
+
+        // Flag Poles
+        const poleGeo = new THREE.CylinderGeometry(0.5, 0.5, 30);
+        const poleMat = new THREE.MeshStandardMaterial({ color: '#cfd8dc' });
+        const flagColors = [0xff0000, 0x0000ff, 0xffffff, 0xffd700, 0x008000];
+
+        for (let i = -3; i <= 3; i++) {
+            if (i === 0) continue;
+            const pole = new THREE.Mesh(poleGeo, poleMat);
+            pole.position.set(i * 15, 5, -30);
+            group.add(pole);
+
+            // Flag
+            const flag = new THREE.Mesh(new THREE.PlaneGeometry(8, 5), new THREE.MeshBasicMaterial({ color: flagColors[Math.abs(i) % flagColors.length], side: THREE.DoubleSide }));
+            flag.position.set(4, 13, 0);
+            pole.add(flag);
         }
+
+        return group;
+    };
+
+    // NEW: TENT CITY (AMERICAN - LAS VEGAS)
+    const createTentCity = () => {
+        const group = new THREE.Group();
+        
+        // Asphalt / Dirt Ground
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), floorMat);
+        ground.rotation.x = -Math.PI/2;
+        ground.position.y = -10;
+        group.add(ground);
+
+        // Scattered debris/boxes
+        for(let i=0; i<30; i++) {
+            const box = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), new THREE.MeshStandardMaterial({color: '#8d6e63'}));
+            box.position.set((Math.random()-0.5)*150, -9, (Math.random()-0.5)*150);
+            box.rotation.y = Math.random();
+            group.add(box);
+        }
+
+        // Tents
+        const tentGeo = new THREE.ConeGeometry(8, 10, 4, 1, true); // Pyramid tent
+        const pupTentGeo = new THREE.CylinderGeometry(1, 8, 8, 3, 1, false, 0, Math.PI * 2); // Triangular prism-ish
+
+        for(let i=0; i<40; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 40 + Math.random() * 100; // Away from center circle
+            const x = Math.cos(angle) * dist;
+            const z = Math.sin(angle) * dist;
+
+            const isPup = Math.random() > 0.5;
+            const mat = Math.random() > 0.7 ? tarpMat : fabricMat;
+
+            if (isPup) {
+                const tent = new THREE.Mesh(pupTentGeo, mat);
+                tent.rotation.z = Math.PI / 2;
+                tent.rotation.y = Math.random() * Math.PI;
+                tent.position.set(x, -7, z); // Sits on ground
+                tent.scale.set(1, 0.5, 1);
+                group.add(tent);
+            } else {
+                const tent = new THREE.Mesh(tentGeo, mat);
+                tent.position.set(x, -5, z);
+                tent.rotation.y = Math.random() * Math.PI;
+                group.add(tent);
+            }
+        }
+        
+        // Street lamps (distant)
+        for(let i=0; i<5; i++) {
+            const lamp = new THREE.Group();
+            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 30), new THREE.MeshStandardMaterial({color: '#555'}));
+            pole.position.y = 5;
+            const light = new THREE.PointLight(0xffaa00, 1, 60);
+            light.position.y = 20;
+            lamp.add(pole); lamp.add(light);
+            lamp.position.set((Math.random()-0.5)*200, -10, (Math.random()-0.5)*200);
+            if (lamp.position.length() > 50) group.add(lamp);
+        }
+
         return group;
     };
 
@@ -400,6 +515,7 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
            torii.add(post1); torii.add(post2); torii.add(topBar);
            group.add(torii);
       } else {
+          // Default pillars if no specific theme geometry (though European now uses Roman Temple)
           for(let i=0; i<12; i++) {
               const angle = (i/12)*Math.PI*2;
               const col = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 40, 16), columnMainMat);
@@ -436,9 +552,25 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
     };
 
     let envGroup: THREE.Group;
-    if (equippedItemId === '1') envGroup = createMausoleumScene();
-    else if (equippedItemId === '4') envGroup = createAncestralSanctuary();
-    else envGroup = createLibrary();
+    let characterY = -10;
+
+    // Determine which scene generator to use and adjust character height accordingly
+    if (equippedItemId === '1') {
+        envGroup = createCaenMemorial(); // Was Roman, now Caen
+        characterY = -10; // Reset to ground level for Caen (Roman was 0)
+    } else if (equippedItemId === '4') {
+        envGroup = createAncestralSanctuary();
+        characterY = -10;
+    } else if (theme === 'American') {
+        envGroup = createTentCity();
+        characterY = -10;
+    } else if (theme === 'European') {
+        envGroup = createCaenMemorial();
+        characterY = -10; 
+    } else {
+        envGroup = createLibrary(); // African, Asian, or fallback
+        characterY = -10;
+    }
     
     scene.add(envGroup);
 
@@ -511,7 +643,7 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
 
     // --- CHARACTER ---
     const character = new THREE.Group();
-    character.position.set(0, -10, 60);
+    character.position.set(0, characterY, 60);
     const head = new THREE.Mesh(new THREE.SphereGeometry(1.5), new THREE.MeshStandardMaterial({map:faceTex})); head.position.y=5; character.add(head);
     const body = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 3.5), new THREE.MeshStandardMaterial({color:'#9D8EFF'})); body.position.y=2.5; character.add(body);
     scene.add(character);

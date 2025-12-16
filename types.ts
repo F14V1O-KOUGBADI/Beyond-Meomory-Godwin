@@ -29,3 +29,5 @@ export interface Product {
 export enum GeminiModel {
   TEXT = 'gemini-2.5-flash',
 }
+
+export type OriginTheme = 'European' | 'African' | 'Asian' | 'American';
