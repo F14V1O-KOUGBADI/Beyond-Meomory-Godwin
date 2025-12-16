@@ -14,15 +14,26 @@ const PRODUCTS: Product[] = [
   { id: '6', title: 'Golden Ring', category: 'Decorations', price: 100, rarity: 'Classic', image: 'https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?auto=format&fit=crop&q=80&w=600' },
 ];
 
+// --- MOCK DATA FOR VISITOR MODE ---
+const VISITOR_MEMORIES: Memory[] = [
+  { id: 'v1', content: "The day I graduated was rainy, but I felt like the sun. My father cried for the first time.", date: "June 12, 1998", emotions: ["Pride", "Joy", "Nostalgia"], themes: ["Achievement", "Family"], ageAtMoment: "22" },
+  { id: 'v2', content: "Our first trip to Kyoto. The golden pavilion reflected in the water perfectly.", date: "April 04, 2005", emotions: ["Awe", "Peace"], themes: ["Travel", "Love"], image: "https://images.unsplash.com/photo-1545569341-9eb8b30979d9?auto=format&fit=crop&q=80&w=600", ageAtMoment: "29" },
+  { id: 'v3', content: "Buying the old house on the hill. It needed work, but it was ours.", date: "Sept 15, 2010", emotions: ["Hope", "Determination"], themes: ["Home", "Building"], ageAtMoment: "34" }
+];
+
 export type OriginTheme = 'European' | 'African' | 'Asian';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'home' | 'onboarding' | 'library' | 'shop' | 'advisor' | 'statistics' | 'metaverse'>('home');
+  
+  // --- VISITOR MODE STATE ---
+  const [isVisitor, setIsVisitor] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   // --- ECONOMY STATE ---
-  const [balance, setBalance] = useState(2500); // Credits/Essence
-  const [inventory, setInventory] = useState<string[]>([]); // Array of Product IDs
-  const [equippedItemId, setEquippedItemId] = useState<string | null>(null); // For Monuments/Environments
+  const [balance, setBalance] = useState(2500); 
+  const [inventory, setInventory] = useState<string[]>([]); 
+  const [equippedItemId, setEquippedItemId] = useState<string | null>(null); 
 
   // --- ORIGIN / THEME STATE ---
   const [showOriginModal, setShowOriginModal] = useState(false);
@@ -49,6 +60,20 @@ const App: React.FC = () => {
 
   // --- SHOP STATE ---
   const [shopFilter, setShopFilter] = useState<'All' | 'Monuments' | 'Decorations' | 'Univers'>('All');
+
+  // --- INITIALIZATION CHECK FOR VISITOR URL ---
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const mode = params.get('mode');
+    if (mode === 'visitor') {
+       setIsVisitor(true);
+       setMemories(VISITOR_MEMORIES);
+       setInventory(['1', '2', '3']); // Visitor sees a stocked inventory
+       setEquippedItemId('1'); // Visitor sees a specific monument
+       setSelectedTheme('Asian'); // Simulated theme
+       setCurrentView('metaverse');
+    }
+  }, []);
 
   // --- HANDLERS ---
   const handleNavChange = (view: typeof currentView) => {
@@ -199,11 +224,65 @@ const App: React.FC = () => {
     audioService.playSuccess();
   };
 
+  const handleShareClick = () => {
+    audioService.playClick();
+    setShowShareModal(true);
+  };
+
+  const copyShareLink = () => {
+     const url = `${window.location.origin}?mode=visitor`;
+     navigator.clipboard.writeText(url);
+     audioService.playSuccess();
+     alert("Access Link Copied to Clipboard. Send this to your loved ones.");
+     setShowShareModal(false);
+  };
+
+  const exitVisitorMode = () => {
+    window.location.href = window.location.origin;
+  };
+
   return (
-    <div className="min-h-screen bg-brand-black text-slate-900 font-sans selection:bg-brand-purple selection:text-white">
+    <div className="min-h-screen bg-brand-black text-slate-900 font-sans selection:bg-brand-purple selection:text-white relative">
       
-      {/* --- ORIGIN SELECTION MODAL --- */}
-      {showOriginModal && (
+      {/* --- VISITOR OVERLAY --- */}
+      {isVisitor && (
+         <div className="fixed bottom-0 left-0 right-0 z-[60] bg-brand-purple text-black py-2 px-4 text-center text-sm font-bold flex justify-between items-center">
+            <span>👁️ You are viewing a Shared Sanctuary (Read-Only)</span>
+            <button onClick={exitVisitorMode} className="bg-black text-white px-3 py-1 rounded text-xs hover:bg-slate-800">Exit Visitor Mode</button>
+         </div>
+      )}
+
+      {/* --- SHARE MODAL --- */}
+      {showShareModal && (
+        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-6 animate-fade-in">
+           <div className="max-w-md w-full bg-brand-surface border border-brand-purple/20 rounded-2xl p-8 relative overflow-hidden text-center">
+              <button onClick={() => setShowShareModal(false)} className="absolute top-4 right-4 text-slate-500 hover:text-white">✕</button>
+              
+              <div className="w-16 h-16 bg-brand-purple/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                <span className="text-3xl">🔑</span>
+              </div>
+              
+              <h2 className="text-2xl font-serif text-white mb-2">Grant Sanctuary Access</h2>
+              <p className="text-slate-400 text-sm mb-8">
+                Share your digital legacy. Recipients with this secure link can visit your Metaverse but cannot alter your memories.
+              </p>
+
+              <div className="bg-black/50 p-4 rounded-lg mb-6 border border-white/10 flex items-center justify-between">
+                 <code className="text-brand-purple text-xs truncate mr-2">{window.location.origin}?mode=visitor</code>
+              </div>
+
+              <button 
+                onClick={copyShareLink}
+                className="w-full py-3 bg-gradient-to-r from-brand-purple to-brand-pink text-black font-bold rounded-xl hover:opacity-90 shadow-[0_0_20px_rgba(157,142,255,0.3)] transition-all"
+              >
+                Copy Private Access Link
+              </button>
+           </div>
+        </div>
+      )}
+
+      {/* --- ORIGIN SELECTION MODAL (Only if not visitor) --- */}
+      {showOriginModal && !isVisitor && (
         <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-6 animate-fade-in">
           <div className="max-w-5xl w-full bg-brand-surface border border-brand-purple/20 rounded-2xl p-8 md:p-12 relative overflow-hidden">
             {/* Background decoration */}
@@ -275,38 +354,57 @@ const App: React.FC = () => {
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           
           {/* Logo */}
-          <div className="flex items-center gap-3 cursor-pointer group" onClick={() => handleNavChange('home')}>
+          <div className="flex items-center gap-3 cursor-pointer group" onClick={() => !isVisitor && handleNavChange('home')}>
             <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-brand-purple to-brand-pink flex items-center justify-center shadow-[0_0_15px_rgba(157,142,255,0.4)] group-hover:shadow-[0_0_25px_rgba(157,142,255,0.6)] transition-shadow">
               <svg className="w-6 h-6 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             </div>
             <span className="font-serif text-2xl font-bold tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-brand-pink via-white to-brand-purple group-hover:to-brand-pink transition-all duration-500">
-              BeyondMemories
+              {isVisitor ? 'Sanctuary View' : 'BeyondMemories'}
             </span>
           </div>
 
-          {/* Links */}
+          {/* Links (Restricted if Visitor) */}
           <div className="hidden md:flex items-center space-x-8 text-sm font-medium tracking-wide text-slate-400">
-            {['Home', 'MyLibrary', 'Life-Shop', 'Legacy Advisor', 'Statistics'].map((item) => {
-               const viewKey = item.toLowerCase().replace(' ', '').replace('-', '') as any;
+            {[
+               { name: 'Home', show: !isVisitor },
+               { name: 'MyLibrary', show: !isVisitor },
+               { name: 'Life-Shop', show: !isVisitor },
+               { name: 'Legacy Advisor', show: true },
+               { name: 'Statistics', show: !isVisitor },
+               { name: 'Metaverse', show: true }
+            ].map((item) => {
+               if (!item.show) return null;
+               const viewKey = item.name.toLowerCase().replace(' ', '').replace('-', '') as any;
                const isActive = currentView === (viewKey === 'mylibrary' ? 'library' : viewKey === 'lifeshop' ? 'shop' : viewKey === 'legacyadvisor' ? 'advisor' : viewKey);
                return (
                  <button 
-                  key={item}
+                  key={item.name}
                   onClick={() => handleNavChange(viewKey === 'mylibrary' ? 'library' : viewKey === 'lifeshop' ? 'shop' : viewKey === 'legacyadvisor' ? 'advisor' : viewKey)}
                   className={`hover:text-brand-pink transition-colors py-2 relative ${isActive ? 'text-white' : ''}`}
                  >
-                   {item}
+                   {item.name}
                    {isActive && <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-brand-purple shadow-[0_0_10px_rgba(157,142,255,0.8)]"></span>}
                  </button>
                );
             })}
           </div>
 
-          {/* Balance / Profile Button */}
-          <div className="px-6 py-2.5 rounded-lg text-sm font-bold bg-white/5 border border-white/10 text-white shadow-lg flex items-center gap-2">
-            <span className="text-brand-purple">{balance} Essence</span>
-            <div className="w-6 h-6 rounded-full bg-slate-700 overflow-hidden">
-               <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="avatar" />
+          {/* Right Action (Balance or Share) */}
+          <div className="flex items-center gap-4">
+            {!isVisitor && (
+                <button 
+                  onClick={handleShareClick}
+                  className="px-4 py-2 bg-brand-purple/10 text-brand-purple border border-brand-purple/30 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-brand-purple hover:text-black transition-colors"
+                >
+                  Share Access
+                </button>
+            )}
+            
+            <div className="px-6 py-2.5 rounded-lg text-sm font-bold bg-white/5 border border-white/10 text-white shadow-lg flex items-center gap-2">
+                {!isVisitor && <span className="text-brand-purple">{balance} Essence</span>}
+                <div className="w-6 h-6 rounded-full bg-slate-700 overflow-hidden">
+                <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${isVisitor ? 'Grandpa' : 'Felix'}`} alt="avatar" />
+                </div>
             </div>
           </div>
         </div>
@@ -314,7 +412,7 @@ const App: React.FC = () => {
 
       <main>
         {/* ================= HERO SECTION (HOME) ================= */}
-        {currentView === 'home' && (
+        {currentView === 'home' && !isVisitor && (
           <div className="bg-brand-black min-h-[calc(100vh-80px)] relative overflow-hidden text-white flex flex-col items-center animate-fade-in">
             
             {/* Background Effects */}
@@ -370,7 +468,7 @@ const App: React.FC = () => {
         )}
 
         {/* ================= ONBOARDING / UPLOAD VIEW ================= */}
-        {currentView === 'onboarding' && (
+        {currentView === 'onboarding' && !isVisitor && (
           <div className="min-h-[calc(100vh-80px)] bg-brand-black flex items-center justify-center p-6 relative overflow-hidden animate-fade-in">
              {/* Background Image depending on Theme */}
              <div className="absolute inset-0 opacity-20 pointer-events-none">
@@ -450,7 +548,7 @@ const App: React.FC = () => {
                     inventory={inventory} 
                     equippedItemId={equippedItemId}
                  /> 
-                 <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/50 text-xs text-center pointer-events-none z-10">
+                 <div className="absolute bottom-16 left-1/2 -translate-x-1/2 text-white/50 text-xs text-center pointer-events-none z-10">
                     Use <span className="font-bold text-brand-yellow">ZQSD / WASD / Arrows</span> to walk.<br/>
                     Camera follows you automatically. Click memories to zoom.
                  </div>
@@ -464,7 +562,7 @@ const App: React.FC = () => {
         )}
 
         {/* ================= LIBRARY VIEW ================= */}
-        {currentView === 'library' && (
+        {currentView === 'library' && !isVisitor && (
           <div className="max-w-7xl mx-auto px-6 py-12 bg-white min-h-[calc(100vh-80px)] animate-fade-in">
             <h2 className="font-serif text-4xl text-black mb-8">My Memory Vault</h2>
             
@@ -572,7 +670,7 @@ const App: React.FC = () => {
         )}
 
         {/* ================= SHOP VIEW ================= */}
-        {currentView === 'shop' && (
+        {currentView === 'shop' && !isVisitor && (
           <div className="flex flex-col lg:flex-row min-h-[calc(100vh-80px)] bg-white animate-fade-in">
              {/* Sidebar */}
              <div className="lg:w-64 bg-slate-50 border-r border-slate-200 p-6 space-y-8">
@@ -713,7 +811,7 @@ const App: React.FC = () => {
         )}
 
         {/* ================= STATISTICS VIEW (EX TOKENOMICS) ================= */}
-        {currentView === 'statistics' && (
+        {currentView === 'statistics' && !isVisitor && (
           <div className="bg-brand-black min-h-[calc(100vh-80px)] text-white p-6 md:p-12 animate-fade-in">
              <div className="max-w-6xl mx-auto">
                <h2 className="font-serif text-4xl mb-12 border-b border-white/10 pb-6 text-brand-pink">Community Statistics</h2>

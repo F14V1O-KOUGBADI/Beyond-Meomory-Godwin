@@ -36,14 +36,35 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
   // Locations
   const LIBRARY_POS = { x: 0, z: 0 };
 
+  // --- AUDIO MANAGEMENT ---
   useEffect(() => {
-    // Audio Init
-    const url = "https://cdn.pixabay.com/audio/2022/05/27/audio_1808fbf07a.mp3";
-    const audio = new Audio(url);
-    audio.loop = true;
-    audio.volume = 0.6; 
-    audio.crossOrigin = "anonymous";
-    audioRef.current = audio;
+    // Select audio based on theme
+    let audioUrl = "https://cdn.pixabay.com/audio/2022/05/27/audio_1808fbf07a.mp3"; // Default European (Piano)
+
+    if (theme === 'African') {
+        audioUrl = "https://cdn.pixabay.com/audio/2021/09/06/audio_342f56780c.mp3"; // Nature/Atmospheric
+    } else if (theme === 'Asian') {
+        audioUrl = "https://cdn.pixabay.com/audio/2021/11/24/audio_825f636605.mp3"; // Zen/Ambient
+    }
+
+    if (!audioRef.current) {
+        // Initialize Audio
+        const audio = new Audio(audioUrl);
+        audio.loop = true;
+        audio.volume = 0.5; 
+        audio.crossOrigin = "anonymous";
+        audioRef.current = audio;
+    } else {
+        // Switch Track if theme changes
+        if (audioRef.current.src !== audioUrl) {
+            const wasPlaying = !audioRef.current.paused;
+            // Fade out effect could be here, but for now abrupt switch
+            audioRef.current.src = audioUrl;
+            if (wasPlaying) {
+                audioRef.current.play().catch((e) => console.log("Audio play failed:", e));
+            }
+        }
+    }
 
     const tryPlay = () => {
       if (audioRef.current && audioRef.current.paused) {
@@ -53,8 +74,7 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
       }
     };
 
-    tryPlay();
-
+    // User interaction listeners to unlock audio context
     const handleInteraction = () => {
       tryPlay();
       document.removeEventListener('click', handleInteraction);
@@ -67,9 +87,19 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
     return () => {
       document.removeEventListener('click', handleInteraction);
       document.removeEventListener('keydown', handleInteraction);
-      audio.pause();
-      audio.src = '';
+      // We don't pause on unmount of effect to allow continuous play during theme switch, 
+      // but we should cleanup on component unmount (handled by empty dependency effect below or cleanup logic)
     };
+  }, [theme]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+      return () => {
+          if (audioRef.current) {
+              audioRef.current.pause();
+              audioRef.current.src = '';
+          }
+      };
   }, []);
 
   const setInput = (key: string, value: boolean) => {
@@ -388,9 +418,17 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
         const z = Math.sin(angle) * radius;
         
         const color = getEmotionColor(mem.emotions);
+        
+        // PARENT FRAME: Handles Position in Circle and Orientation to User
         const frame = new THREE.Group();
-        frame.position.set(x, 5 + Math.random() * 5, z);
-        frame.lookAt(0, 5, 0);
+        const initialY = 5 + Math.random() * 5;
+        frame.position.set(x, initialY, z);
+        // Look away from center so the front face (Z+) faces outwards towards the character
+        frame.lookAt(x * 2, initialY, z * 2);
+
+        // CHILD MESH: Handles Local Animation (Float/Rock) without disturbing Parent Orientation
+        const memoryMeshGroup = new THREE.Group(); // Inner group for animation
+        frame.add(memoryMeshGroup);
 
         let boxMat;
         if (mem.image) {
@@ -402,12 +440,21 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
         }
 
         const box = new THREE.Mesh(new THREE.BoxGeometry(8, 10, 0.5), boxMat);
-        frame.add(box);
-        const border = new THREE.Mesh(new THREE.BoxGeometry(8.2, 10.2, 0.4), new THREE.MeshBasicMaterial({ color: color }));
-        frame.add(border);
+        memoryMeshGroup.add(box);
         
-        box.userData = { id: mem.id, type: 'memory' };
-        artifactsRef.current.push(box);
+        const border = new THREE.Mesh(new THREE.BoxGeometry(8.2, 10.2, 0.4), new THREE.MeshBasicMaterial({ color: color }));
+        memoryMeshGroup.add(border);
+        
+        // Store reference to the ANIMATED child group
+        memoryMeshGroup.userData = { 
+            id: mem.id, 
+            type: 'memory', 
+            // We use 0 as base for local animation, actual Y offset is handled by parent frame
+            phase: Math.random() * Math.PI * 2 
+        };
+        
+        // We push the inner group to artifacts so we animate IT, not the frame
+        artifactsRef.current.push(memoryMeshGroup as any); // Cast for simplicity, it contains meshes
         scene.add(frame);
     });
 
@@ -431,6 +478,7 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
     const animate = () => {
         reqRef.current = requestAnimationFrame(animate);
         const delta = clock.getDelta();
+        const time = clock.getElapsedTime();
         
         if (characterRef.current && cameraRef.current) {
             const moveSpeed = 40 * delta;
@@ -497,6 +545,17 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
             );
             cameraRef.current.lookAt(targetPos);
         }
+
+        // --- Animate Memory Artifacts (Floating & Rocking) ---
+        // We now animate the CHILD group (memoryMeshGroup), not the parent Frame.
+        artifactsRef.current.forEach((memoryGroup) => {
+             const { phase } = memoryGroup.userData;
+             if (phase !== undefined) {
+                 // Local animation relative to the Frame's anchor point
+                 memoryGroup.position.y = Math.sin(time + phase) * 0.5;
+                 memoryGroup.rotation.z = Math.sin(time * 0.5 + phase) * 0.05;
+             }
+        });
         
         rendererRef.current?.render(sceneRef.current!, cameraRef.current!);
     };
@@ -525,11 +584,20 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
         mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
         mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
         raycaster.setFromCamera(mouse, cameraRef.current);
-        const intersects = raycaster.intersectObjects(artifactsRef.current);
+        // Intersect recursive to hit the boxes inside groups
+        const intersects = raycaster.intersectObjects(artifactsRef.current, true);
         if (intersects.length > 0) {
-            const id = intersects[0].object.userData.id;
-            const mem = memories.find(m => m.id === id);
-            if (mem) alert(`Memory: ${mem.content}\nEmotion: ${mem.emotions.join(', ')}`);
+            // Find the group that holds the ID (it might be the parent of the box intersected)
+            let target = intersects[0].object;
+            while(target && !target.userData.id && target.parent) {
+                target = target.parent;
+            }
+            
+            if (target && target.userData.id) {
+                const id = target.userData.id;
+                const mem = memories.find(m => m.id === id);
+                if (mem) alert(`Memory: ${mem.content}\nEmotion: ${mem.emotions.join(', ')}`);
+            }
         }
     };
 
