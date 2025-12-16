@@ -1,13 +1,24 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { GeminiModel } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Helper to get AI instance only when needed
+const getAI = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    console.warn("API Key is missing. AI features will not work.");
+    return null;
+  }
+  return new GoogleGenAI({ apiKey });
+};
 
 /**
  * Analyzes a memory text to extract emotions and themes.
  */
 export const analyzeMemory = async (text: string): Promise<{ emotions: string[], themes: string[] }> => {
   try {
+    const ai = getAI();
+    if (!ai) return { emotions: ['Unanalyzed'], themes: ['Memory'] };
+
     const response = await ai.models.generateContent({
       model: GeminiModel.TEXT,
       contents: `Analyze the following memory and extract:
@@ -43,6 +54,9 @@ export const analyzeMemory = async (text: string): Promise<{ emotions: string[],
  */
 export const askLegacyAdvisor = async (history: {role: string, parts: {text: string}[]}[], newMessage: string) => {
   try {
+    const ai = getAI();
+    if (!ai) return "I cannot speak right now (Missing API Key).";
+
     const chat = ai.chats.create({
       model: GeminiModel.TEXT,
       config: {

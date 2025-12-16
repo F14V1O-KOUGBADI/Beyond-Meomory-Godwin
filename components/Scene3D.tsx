@@ -36,73 +36,78 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
   // Audio State
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [customAudioUrl, setCustomAudioUrl] = useState<string | null>(null); // State for user uploaded song
 
   // Locations
   const LIBRARY_POS = { x: 0, z: 0 };
 
   // --- AUDIO MANAGEMENT ---
   useEffect(() => {
-    // Select audio based on theme
-    let audioUrl = "https://cdn.pixabay.com/audio/2022/05/27/audio_1808fbf07a.mp3"; // Default European (Piano)
-
-    if (theme === 'African') {
-        audioUrl = "https://cdn.pixabay.com/audio/2021/09/06/audio_342f56780c.mp3"; // Nature/Atmospheric
-    } else if (theme === 'Asian') {
-        audioUrl = "https://cdn.pixabay.com/audio/2021/11/24/audio_825f636605.mp3"; // Zen/Ambient
-    }
+    // Default fallback: Erik Satie - Gymnopedie No 1 (Public Domain)
+    const defaultAudioUrl = "https://upload.wikimedia.org/wikipedia/commons/3/35/Gymnopedie_No_1.ogg";
+    
+    // Use custom URL if user uploaded one, otherwise default
+    const currentSource = customAudioUrl || defaultAudioUrl;
 
     if (!audioRef.current) {
-        // Initialize Audio
-        const audio = new Audio(audioUrl);
+        const audio = new Audio();
+        audio.src = currentSource;
         audio.loop = true;
         audio.volume = 0.5; 
         audio.crossOrigin = "anonymous";
         audioRef.current = audio;
     } else {
-        // Switch Track if theme changes
-        if (audioRef.current.src !== audioUrl) {
-            const wasPlaying = !audioRef.current.paused;
-            // Fade out effect could be here, but for now abrupt switch
-            audioRef.current.src = audioUrl;
-            if (wasPlaying) {
-                audioRef.current.play().catch((e) => console.log("Audio play failed:", e));
-            }
+        // Change source if track changed
+        if (audioRef.current.src !== currentSource) {
+            audioRef.current.src = currentSource;
         }
     }
 
+    // Force Auto-Play logic
     const tryPlay = () => {
       if (audioRef.current && audioRef.current.paused) {
-        audioRef.current.play()
-          .then(() => setIsPlaying(true))
-          .catch((e) => console.log("Waiting for user interaction to play audio", e));
+        const playPromise = audioRef.current.play();
+        if (playPromise !== undefined) {
+            playPromise
+            .then(() => setIsPlaying(true))
+            .catch((e) => {
+                console.log("Auto-play blocked, waiting for interaction.");
+                const resumeAudio = () => {
+                    if (audioRef.current) {
+                        audioRef.current.play().catch(() => {});
+                        setIsPlaying(true);
+                    }
+                    document.removeEventListener('click', resumeAudio);
+                    document.removeEventListener('keydown', resumeAudio);
+                };
+                document.addEventListener('click', resumeAudio);
+                document.addEventListener('keydown', resumeAudio);
+            });
+        }
       }
     };
 
-    // User interaction listeners to unlock audio context
-    const handleInteraction = () => {
-      tryPlay();
-      document.removeEventListener('click', handleInteraction);
-      document.removeEventListener('keydown', handleInteraction);
-    };
-    
-    document.addEventListener('click', handleInteraction);
-    document.addEventListener('keydown', handleInteraction);
+    tryPlay();
 
     return () => {
-      document.removeEventListener('click', handleInteraction);
-      document.removeEventListener('keydown', handleInteraction);
+      // Cleanup only on unmount
+      if (audioRef.current && !customAudioUrl) { // Keep playing if just switching tracks internally
+          audioRef.current.pause();
+          audioRef.current.removeAttribute('src'); 
+          audioRef.current.load();
+          audioRef.current = null;
+      }
     };
-  }, [theme]);
+  }, [customAudioUrl]); 
 
-  // Cleanup on unmount
-  useEffect(() => {
-      return () => {
-          if (audioRef.current) {
-              audioRef.current.pause();
-              audioRef.current.src = '';
-          }
-      };
-  }, []);
+  const handleMusicUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+          const file = e.target.files[0];
+          const url = URL.createObjectURL(file);
+          setCustomAudioUrl(url);
+          setIsPlaying(true);
+      }
+  };
 
   const setInput = (key: string, value: boolean) => {
     keysPressed.current[key] = value;
@@ -160,8 +165,6 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
   };
 
   // --- EFFECT: Handle Video Texture Playback on Focus ---
-  // We keep the texture video muted and play/pause it based on focus.
-  // The Overlay will handle the audible playback.
   useEffect(() => {
     // 1. Pause all videos initially
     artifactsRef.current.forEach(g => {
@@ -708,6 +711,17 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
     <div className="relative w-full h-full">
         {/* 3D Canvas Container */}
         <div ref={mountRef} className="w-full h-full cursor-pointer" />
+
+        {/* CONTROLS OVERLAY: CUSTOM MUSIC */}
+        <div className="absolute bottom-8 right-8 z-20 flex flex-col gap-2 animate-fade-in pointer-events-auto">
+            <label className="bg-black/50 hover:bg-brand-purple/20 text-white p-3 rounded-full cursor-pointer border border-white/20 transition-all group relative">
+                <span className="text-xl">🎵</span>
+                <input type="file" accept="audio/*" onChange={handleMusicUpload} className="hidden" />
+                <div className="absolute bottom-full right-0 mb-2 w-max px-2 py-1 bg-black text-xs text-white rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    Change Atmosphere
+                </div>
+            </label>
+        </div>
 
         {/* FOCUSED MEMORY OVERLAY */}
         {focusedMemory && (

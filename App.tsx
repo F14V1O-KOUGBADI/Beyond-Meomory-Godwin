@@ -244,7 +244,8 @@ const App: React.FC = () => {
   };
 
   const copyShareLink = () => {
-     const url = `${window.location.origin}?mode=visitor`;
+     // FIXED: Includes origin + pathname to prevent 404s on subpaths or dev environments
+     const url = `${window.location.origin}${window.location.pathname}?mode=visitor`;
      navigator.clipboard.writeText(url);
      audioService.playSuccess();
      alert("Access Link Copied to Clipboard. Send this to your loved ones.");
@@ -252,7 +253,7 @@ const App: React.FC = () => {
   };
 
   const exitVisitorMode = () => {
-    window.location.href = window.location.origin;
+    window.location.href = window.location.origin + window.location.pathname;
   };
 
   return (
@@ -282,7 +283,9 @@ const App: React.FC = () => {
               </p>
 
               <div className="bg-black/50 p-4 rounded-lg mb-6 border border-white/10 flex items-center justify-between">
-                 <code className="text-brand-purple text-xs truncate mr-2">{window.location.origin}?mode=visitor</code>
+                 <code className="text-brand-purple text-xs truncate mr-2">
+                   {`${window.location.origin}${window.location.pathname}?mode=visitor`}
+                 </code>
               </div>
 
               <button 
@@ -383,7 +386,7 @@ const App: React.FC = () => {
                { name: 'Home', show: !isVisitor },
                { name: 'MyLibrary', show: !isVisitor },
                { name: 'Life-Shop', show: !isVisitor },
-               { name: 'Legacy Advisor', show: true },
+               { name: 'Legacy Advisor', show: !isVisitor }, // Hided for visitors to avoid 401
                { name: 'Statistics', show: !isVisitor },
                { name: 'Metaverse', show: true }
             ].map((item) => {
