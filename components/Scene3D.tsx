@@ -23,12 +23,16 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
   const keysPressed = useRef<{ [key: string]: boolean }>({});
 
   // Interaction state
-  // Initial camera angle (Spherical coordinates)
   const cameraAngle = useRef({ 
       theta: Math.PI / 2, // Horizontal angle
       phi: Math.PI / 2.5  // Vertical angle
   });
   
+  // Focus State (Zoom logic)
+  const [focusedMemory, setFocusedMemory] = useState<Memory | null>(null);
+  // We use a ref to track the focus target ID inside the animation loop to avoid dependency staleness
+  const focusedMemoryIdRef = useRef<string | null>(null); 
+
   // Audio State
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -87,8 +91,6 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
     return () => {
       document.removeEventListener('click', handleInteraction);
       document.removeEventListener('keydown', handleInteraction);
-      // We don't pause on unmount of effect to allow continuous play during theme switch, 
-      // but we should cleanup on component unmount (handled by empty dependency effect below or cleanup logic)
     };
   }, [theme]);
 
@@ -104,6 +106,11 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
 
   const setInput = (key: string, value: boolean) => {
     keysPressed.current[key] = value;
+  };
+
+  const handleCloseFocus = () => {
+      setFocusedMemory(null);
+      focusedMemoryIdRef.current = null;
   };
 
   // --- Theme Colors Configuration ---
@@ -169,7 +176,7 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
     const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000); 
     cameraRef.current = camera;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
@@ -454,7 +461,7 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
         };
         
         // We push the inner group to artifacts so we animate IT, not the frame
-        artifactsRef.current.push(memoryMeshGroup as any); // Cast for simplicity, it contains meshes
+        artifactsRef.current.push(memoryMeshGroup as any); 
         scene.add(frame);
     });
 
@@ -475,83 +482,116 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
 
     // --- ANIMATION LOOP (CAMERA-RELATIVE MOVEMENT) ---
     const clock = new THREE.Clock();
+    
+    // Variables for Camera Transitions
+    const currentCameraPos = new THREE.Vector3();
+    const currentCameraLookAt = new THREE.Vector3();
+
     const animate = () => {
         reqRef.current = requestAnimationFrame(animate);
         const delta = clock.getDelta();
         const time = clock.getElapsedTime();
         
+        const isFocused = !!focusedMemoryIdRef.current;
+
         if (characterRef.current && cameraRef.current) {
-            const moveSpeed = 40 * delta;
-            const rotSpeed = 2 * delta;
             
-            // 1. Determine Camera Forward Direction (Projected on XZ plane)
-            // Note: Camera orientation now controlled purely by user, not character
-            const camDir = new THREE.Vector3();
-            cameraRef.current.getWorldDirection(camDir);
-            camDir.y = 0; // Flatten trajectory
-            camDir.normalize();
+            // --- BRANCH 1: FOCUSED MODE (ZOOM IN) ---
+            if (isFocused) {
+               // Find the target object
+               let targetObj: THREE.Object3D | null = null;
+               artifactsRef.current.forEach(art => {
+                 if (art.userData.id === focusedMemoryIdRef.current) targetObj = art;
+               });
 
-            // 2. Determine Camera Right Direction
-            const camRight = new THREE.Vector3(-camDir.z, 0, camDir.x);
+               if (targetObj) {
+                  // Calculate Zoom Target Position
+                  const targetWorldPos = new THREE.Vector3();
+                  (targetObj as THREE.Object3D).getWorldPosition(targetWorldPos);
+                  
+                  const targetWorldDir = new THREE.Vector3();
+                  (targetObj as THREE.Object3D).getWorldDirection(targetWorldDir);
+                  
+                  // Position camera 15 units "in front" of the object.
+                  // Since the artifacts look outwards (Z+), we position camera at Pos + (Dir * 15)
+                  const camTargetPos = targetWorldPos.clone().add(targetWorldDir.clone().multiplyScalar(15));
+                  
+                  cameraRef.current.position.lerp(camTargetPos, 0.05);
+                  
+                  // Smoothly adjust lookAt by using a dummy object or simple slerp, 
+                  // but for simplicity, we keep looking at the target center during lerp
+                  cameraRef.current.lookAt(targetWorldPos);
+               }
 
-            // 3. Calculate Movement Vector based on Arrow Keys (Character Move)
-            const moveVec = new THREE.Vector3(0, 0, 0);
-            const isUp = keysPressed.current['ArrowUp'];
-            const isDown = keysPressed.current['ArrowDown'];
-            const isLeft = keysPressed.current['ArrowLeft'];
-            const isRight = keysPressed.current['ArrowRight'];
-
-            if (isUp) moveVec.add(camDir);
-            if (isDown) moveVec.sub(camDir);
-            if (isRight) moveVec.add(camRight);
-            if (isLeft) moveVec.sub(camRight);
-
-            // 4. Apply Character Movement
-            if (moveVec.lengthSq() > 0) {
-                moveVec.normalize().multiplyScalar(moveSpeed);
-                characterRef.current.position.add(moveVec);
+            } 
+            // --- BRANCH 2: EXPLORATION MODE (CHARACTER CONTROL) ---
+            else {
+                const moveSpeed = 40 * delta;
+                const rotSpeed = 2 * delta;
                 
-                // Rotate Character to face movement
-                const targetAngle = Math.atan2(moveVec.x, moveVec.z);
-                const currentRot = characterRef.current.rotation.y;
-                let diff = targetAngle - currentRot;
-                while (diff > Math.PI) diff -= Math.PI * 2;
-                while (diff < -Math.PI) diff += Math.PI * 2;
-                characterRef.current.rotation.y += diff * 0.1; 
+                // 1. Camera Directions
+                const camDir = new THREE.Vector3();
+                cameraRef.current.getWorldDirection(camDir);
+                camDir.y = 0; // Flatten trajectory
+                camDir.normalize();
+                const camRight = new THREE.Vector3(-camDir.z, 0, camDir.x);
+
+                // 2. Input
+                const moveVec = new THREE.Vector3(0, 0, 0);
+                const isUp = keysPressed.current['ArrowUp'];
+                const isDown = keysPressed.current['ArrowDown'];
+                const isLeft = keysPressed.current['ArrowLeft'];
+                const isRight = keysPressed.current['ArrowRight'];
+
+                if (isUp) moveVec.add(camDir);
+                if (isDown) moveVec.sub(camDir);
+                if (isRight) moveVec.add(camRight);
+                if (isLeft) moveVec.sub(camRight);
+
+                // 3. Move Character
+                if (moveVec.lengthSq() > 0) {
+                    moveVec.normalize().multiplyScalar(moveSpeed);
+                    characterRef.current.position.add(moveVec);
+                    
+                    const targetAngle = Math.atan2(moveVec.x, moveVec.z);
+                    const currentRot = characterRef.current.rotation.y;
+                    let diff = targetAngle - currentRot;
+                    while (diff > Math.PI) diff -= Math.PI * 2;
+                    while (diff < -Math.PI) diff += Math.PI * 2;
+                    characterRef.current.rotation.y += diff * 0.1; 
+                }
+
+                // 4. Update Angles
+                if (keysPressed.current['KeyQ'] || keysPressed.current['KeyA']) cameraAngle.current.theta += rotSpeed;
+                if (keysPressed.current['KeyD']) cameraAngle.current.theta -= rotSpeed;
+                if (keysPressed.current['KeyZ'] || keysPressed.current['KeyW']) cameraAngle.current.phi = Math.max(0.1, cameraAngle.current.phi - rotSpeed);
+                if (keysPressed.current['KeyS']) cameraAngle.current.phi = Math.min(Math.PI - 0.1, cameraAngle.current.phi + rotSpeed);
+
+                // 5. Calculate Chase Camera Position
+                const targetPos = characterRef.current.position.clone();
+                targetPos.y += 5; // Look at head height
+                
+                const dist = 20; 
+                const offsetX = dist * Math.sin(cameraAngle.current.phi) * Math.sin(cameraAngle.current.theta);
+                const offsetY = dist * Math.cos(cameraAngle.current.phi);
+                const offsetZ = dist * Math.sin(cameraAngle.current.phi) * Math.cos(cameraAngle.current.theta);
+                
+                const idealCamPos = new THREE.Vector3(
+                    targetPos.x + offsetX,
+                    targetPos.y + offsetY,
+                    targetPos.z + offsetZ
+                );
+                
+                // Lerp for smooth camera follow/re-entry from zoom
+                cameraRef.current.position.lerp(idealCamPos, 0.1);
+                cameraRef.current.lookAt(targetPos);
             }
-
-            // 5. Update Camera Angles (ZQSD/WASD Control - Orbit)
-            // Z/S = Zoom (Radius) or Pitch (Phi) ? Let's do Pitch/Height
-            // Q/D = Rotate (Theta)
-            if (keysPressed.current['KeyQ'] || keysPressed.current['KeyA']) cameraAngle.current.theta += rotSpeed;
-            if (keysPressed.current['KeyD']) cameraAngle.current.theta -= rotSpeed;
-            if (keysPressed.current['KeyZ'] || keysPressed.current['KeyW']) cameraAngle.current.phi = Math.max(0.1, cameraAngle.current.phi - rotSpeed);
-            if (keysPressed.current['KeyS']) cameraAngle.current.phi = Math.min(Math.PI - 0.1, cameraAngle.current.phi + rotSpeed);
-
-            // 6. Camera Position (Chase Logic BUT NO AUTO ROTATION)
-            // The camera follows the character's POSITION, but its ROTATION is strictly defined by cameraAngle refs
-            const targetPos = characterRef.current.position.clone();
-            targetPos.y += 5; // Look at head height
-            
-            const dist = 20; // Fixed distance or variable? Let's use fixed radius for simplicity
-            const offsetX = dist * Math.sin(cameraAngle.current.phi) * Math.sin(cameraAngle.current.theta);
-            const offsetY = dist * Math.cos(cameraAngle.current.phi);
-            const offsetZ = dist * Math.sin(cameraAngle.current.phi) * Math.cos(cameraAngle.current.theta);
-            
-            cameraRef.current.position.set(
-                targetPos.x + offsetX,
-                targetPos.y + offsetY,
-                targetPos.z + offsetZ
-            );
-            cameraRef.current.lookAt(targetPos);
         }
 
         // --- Animate Memory Artifacts (Floating & Rocking) ---
-        // We now animate the CHILD group (memoryMeshGroup), not the parent Frame.
         artifactsRef.current.forEach((memoryGroup) => {
              const { phase } = memoryGroup.userData;
              if (phase !== undefined) {
-                 // Local animation relative to the Frame's anchor point
                  memoryGroup.position.y = Math.sin(time + phase) * 0.5;
                  memoryGroup.rotation.z = Math.sin(time * 0.5 + phase) * 0.05;
              }
@@ -581,22 +621,26 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
         if (!cameraRef.current || !sceneRef.current) return;
         const rect = mountRef.current?.getBoundingClientRect();
         if (!rect) return;
+        
+        // If already focused, clicking anywhere else (canvas) shouldn't immediately dismiss
+        // We'll let the UI close button handle dismissal, or click outside to dismiss
+        // But for simplicity, we only handle *selecting* here.
+
         mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
         mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
         raycaster.setFromCamera(mouse, cameraRef.current);
-        // Intersect recursive to hit the boxes inside groups
         const intersects = raycaster.intersectObjects(artifactsRef.current, true);
+        
         if (intersects.length > 0) {
-            // Find the group that holds the ID (it might be the parent of the box intersected)
             let target = intersects[0].object;
             while(target && !target.userData.id && target.parent) {
                 target = target.parent;
             }
-            
             if (target && target.userData.id) {
                 const id = target.userData.id;
-                const mem = memories.find(m => m.id === id);
-                if (mem) alert(`Memory: ${mem.content}\nEmotion: ${mem.emotions.join(', ')}`);
+                const mem = memories.find(m => m.id === id) || null;
+                setFocusedMemory(mem);
+                focusedMemoryIdRef.current = id;
             }
         }
     };
@@ -619,7 +663,57 @@ const Scene3D: React.FC<Scene3DProps> = ({ memories, theme, inventory, equippedI
 
   }, [memories, theme, inventory, equippedItemId]);
 
-  return <div ref={mountRef} className="w-full h-full" />;
+  return (
+    <div className="relative w-full h-full">
+        {/* 3D Canvas Container */}
+        <div ref={mountRef} className="w-full h-full cursor-pointer" />
+
+        {/* FOCUSED MEMORY OVERLAY */}
+        {focusedMemory && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center p-8 bg-black/40 backdrop-blur-sm animate-fade-in">
+                <div className="bg-brand-surface border border-white/10 p-8 rounded-2xl max-w-2xl w-full shadow-2xl relative flex flex-col md:flex-row gap-8 items-center">
+                    
+                    {/* Close Button */}
+                    <button 
+                        onClick={handleCloseFocus}
+                        className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white"
+                    >
+                        ✕
+                    </button>
+
+                    {/* Image */}
+                    {focusedMemory.image && (
+                        <div className="w-full md:w-1/2 h-64 rounded-xl overflow-hidden shadow-lg border border-white/5">
+                            <img src={focusedMemory.image} alt="Memory" className="w-full h-full object-cover" />
+                        </div>
+                    )}
+
+                    {/* Content */}
+                    <div className="flex-1 text-left">
+                        <div className="flex items-center gap-3 mb-4">
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{focusedMemory.date}</span>
+                            {focusedMemory.ageAtMoment && (
+                                <span className="px-2 py-0.5 bg-brand-purple/20 text-brand-purple text-[10px] font-bold rounded uppercase">
+                                    Age {focusedMemory.ageAtMoment}
+                                </span>
+                            )}
+                        </div>
+                        
+                        <p className="font-serif text-2xl md:text-3xl text-white leading-relaxed mb-6">
+                            "{focusedMemory.content}"
+                        </p>
+
+                        <div className="flex flex-wrap gap-2">
+                             {focusedMemory.emotions.map(emo => (
+                               <span key={emo} className="px-3 py-1 bg-white/5 border border-white/10 text-slate-300 text-xs rounded-full">{emo}</span>
+                             ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
+    </div>
+  );
 };
 
 export default Scene3D;
